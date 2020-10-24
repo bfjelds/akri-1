@@ -5,9 +5,7 @@ use akri_shared::{
     },
     k8s,
     k8s::{
-        pod::{
-            AKRI_CONFIGURATION_LABEL_NAME, AKRI_INSTANCE_LABEL_NAME, AKRI_TARGET_NODE_LABEL_NAME,
-        },
+        pod::{AKRI_CONFIGURATION_LABEL_NAME, AKRI_INSTANCE_LABEL_NAME, AKRI_TARGET_NODE_LABEL_NAME},
         service, KubeInterface, OwnershipInfo, OwnershipType,
     },
 };
@@ -70,22 +68,15 @@ pub struct BrokerPodWatcher {
 impl BrokerPodWatcher {
     /// Create new instance of BrokerPodWatcher
     pub fn new() -> Self {
-        BrokerPodWatcher {
-            known_pods: HashMap::new(),
-        }
+        BrokerPodWatcher { known_pods: HashMap::new() }
     }
 
     /// This watches for broker Pod events
-    pub async fn watch(
-        &mut self,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    pub async fn watch(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("watch - enter");
         let kube_interface = k8s::create_kube_interface();
         let resource = Api::v1Pod(kube_interface.get_kube_client());
-        let informer = Informer::new(resource.clone())
-            .labels(AKRI_TARGET_NODE_LABEL_NAME)
-            .init()
-            .await?;
+        let informer = Informer::new(resource.clone()).labels(AKRI_TARGET_NODE_LABEL_NAME).init().await?;
         let synchronization = Arc::new(Mutex::new(()));
 
         loop {
@@ -103,13 +94,7 @@ impl BrokerPodWatcher {
     /// Gets Pods phase and returns "Unknown" if no phase exists
     fn get_pod_phase(&mut self, pod: &PodObject) -> String {
         if pod.status.is_some() {
-            pod.status
-                .as_ref()
-                .unwrap()
-                .phase
-                .as_ref()
-                .unwrap_or(&"Unknown".to_string())
-                .to_string()
+            pod.status.as_ref().unwrap().phase.as_ref().unwrap_or(&"Unknown".to_string()).to_string()
         } else {
             "Unknown".to_string()
         }
@@ -131,16 +116,13 @@ impl BrokerPodWatcher {
                 trace!("handle_pod - pod phase {:?}", &phase);
                 match phase.as_str() {
                     "Unknown" | "Pending" => {
-                        self.known_pods
-                            .insert(pod.metadata.name.clone(), PodState::Pending);
+                        self.known_pods.insert(pod.metadata.name.clone(), PodState::Pending);
                     }
                     "Running" => {
-                        self.handle_running_pod_if_needed(&pod, kube_interface)
-                            .await?;
+                        self.handle_running_pod_if_needed(&pod, kube_interface).await?;
                     }
                     "Succeeded" | "Failed" => {
-                        self.handle_ended_pod_if_needed(&pod, kube_interface)
-                            .await?;
+                        self.handle_ended_pod_if_needed(&pod, kube_interface).await?;
                     }
                     _ => {
                         trace!("handle_pod - Unknown phase: {:?}", &phase);
@@ -149,8 +131,7 @@ impl BrokerPodWatcher {
             }
             WatchEvent::Deleted(pod) => {
                 trace!("handle_pod - Deleted: {:?}", &pod.metadata.name);
-                self.handle_deleted_pod_if_needed(&pod, kube_interface)
-                    .await?;
+                self.handle_deleted_pod_if_needed(&pod, kube_interface).await?;
             }
             WatchEvent::Error(err) => {
                 trace!("handle_pod - error for Pod: {}", err);
@@ -169,10 +150,7 @@ impl BrokerPodWatcher {
         trace!("handle_running_pod_if_needed - enter");
         let pod_name = pod.metadata.name.clone();
         let last_known_state = self.known_pods.get(&pod_name).unwrap_or(&PodState::Pending);
-        trace!(
-            "handle_running_pod_if_needed - last_known_state: {:?}",
-            &last_known_state
-        );
+        trace!("handle_running_pod_if_needed - last_known_state: {:?}", &last_known_state);
         // Ensure that, for each pod, handle_running_pod is called once
         // per transition into the Running state
         if last_known_state != &PodState::Running {
@@ -195,10 +173,7 @@ impl BrokerPodWatcher {
         trace!("handle_ended_pod_if_needed - enter");
         let pod_name = pod.metadata.name.clone();
         let last_known_state = self.known_pods.get(&pod_name).unwrap_or(&PodState::Pending);
-        trace!(
-            "handle_ended_pod_if_needed - last_known_state: {:?}",
-            &last_known_state
-        );
+        trace!("handle_ended_pod_if_needed - last_known_state: {:?}", &last_known_state);
         // Ensure that, for each pod, handle_non_running_pod is called once
         // per transition into the Ended state
         if last_known_state != &PodState::Ended {
@@ -221,10 +196,7 @@ impl BrokerPodWatcher {
         trace!("handle_deleted_pod_if_needed - enter");
         let pod_name = pod.metadata.name.clone();
         let last_known_state = self.known_pods.get(&pod_name).unwrap_or(&PodState::Pending);
-        trace!(
-            "handle_deleted_pod_if_needed - last_known_state: {:?}",
-            &last_known_state
-        );
+        trace!("handle_deleted_pod_if_needed - last_known_state: {:?}", &last_known_state);
         // Ensure that, for each pod, handle_non_running_pod is called once
         // per transition into the Deleted state
         if last_known_state != &PodState::Deleted {
@@ -242,16 +214,8 @@ impl BrokerPodWatcher {
         pod: &PodObject,
     ) -> Result<(String, String), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("get_instance_and_configuration_from_pod - enter");
-        let instance_id = pod
-            .metadata
-            .labels
-            .get(AKRI_INSTANCE_LABEL_NAME)
-            .ok_or("No configuration name found.")?;
-        let config_name = pod
-            .metadata
-            .labels
-            .get(AKRI_CONFIGURATION_LABEL_NAME)
-            .ok_or("No instance id found.")?;
+        let instance_id = pod.metadata.labels.get(AKRI_INSTANCE_LABEL_NAME).ok_or("No configuration name found.")?;
+        let config_name = pod.metadata.labels.get(AKRI_CONFIGURATION_LABEL_NAME).ok_or("No instance id found.")?;
         Ok((instance_id.to_string(), config_name.to_string()))
     }
 
@@ -264,27 +228,13 @@ impl BrokerPodWatcher {
         kube_interface: &impl KubeInterface,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("handle_non_running_pod - enter");
-        let namespace = pod.metadata.namespace.as_ref().ok_or(format!(
-            "Namespace not found for pod: {}",
-            &pod.metadata.name
-        ))?;
+        let namespace =
+            pod.metadata.namespace.as_ref().ok_or(format!("Namespace not found for pod: {}", &pod.metadata.name))?;
         let (instance_id, config_name) = self.get_instance_and_configuration_from_pod(pod)?;
-        self.find_pods_and_cleanup_svc_if_unsupported(
-            &instance_id,
-            &config_name,
-            &namespace,
-            true,
-            kube_interface,
-        )
-        .await?;
-        self.find_pods_and_cleanup_svc_if_unsupported(
-            &instance_id,
-            &config_name,
-            &namespace,
-            false,
-            kube_interface,
-        )
-        .await?;
+        self.find_pods_and_cleanup_svc_if_unsupported(&instance_id, &config_name, &namespace, true, kube_interface)
+            .await?;
+        self.find_pods_and_cleanup_svc_if_unsupported(&instance_id, &config_name, &namespace, false, kube_interface)
+            .await?;
 
         // Make sure instance has required Pods
         if let Ok(instance) = kube_interface.find_instance(&instance_id, &namespace).await {
@@ -319,15 +269,9 @@ impl BrokerPodWatcher {
 
         // Clean up instance service if there are no pods anymore
         let selector = format!("{}={}", label, value);
-        trace!(
-            "find_pods_and_cleanup_svc_if_unsupported - find_pods_with_label({})",
-            selector
-        );
+        trace!("find_pods_and_cleanup_svc_if_unsupported - find_pods_with_label({})", selector);
         let pods = kube_interface.find_pods_with_label(&selector).await?;
-        trace!(
-            "find_pods_and_cleanup_svc_if_unsupported - found {} pods",
-            pods.items.len()
-        );
+        trace!("find_pods_and_cleanup_svc_if_unsupported - found {} pods", pods.items.len());
 
         let svc_name = service::create_service_app_name(
             &configuration_name,
@@ -336,8 +280,7 @@ impl BrokerPodWatcher {
             handle_instance_svc,
         );
 
-        self.cleanup_svc_if_unsupported(&pods.items, &svc_name, namespace, kube_interface)
-            .await
+        self.cleanup_svc_if_unsupported(&pods.items, &svc_name, namespace, kube_interface).await
     }
 
     /// This determines if there are Services that need to be removed because
@@ -350,32 +293,32 @@ impl BrokerPodWatcher {
         kube_interface: &impl KubeInterface,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // Find the number of non-Terminating pods, if there aren't any (the only pods that exist are Terminating), we should remove the device capability service
-        let num_non_terminating_pods = pods.iter().filter(|&x|
-            match &x.status {
-                Some(status) => {
-                    match &status.phase {
-                        Some(phase) => {
-                            trace!("cleanup_svc_if_unsupported - finding num_non_terminating_pods: pod:{:?} phase:{:?}", &x.metadata.name, &phase);
-                            phase != "Terminating" && phase != "Failed"
-                        },
-                        _ => true,
+        let num_non_terminating_pods = pods
+            .iter()
+            .filter(|&x| match &x.status {
+                Some(status) => match &status.phase {
+                    Some(phase) => {
+                        trace!(
+                            "cleanup_svc_if_unsupported - finding num_non_terminating_pods: pod:{:?} phase:{:?}",
+                            &x.metadata.name,
+                            &phase
+                        );
+                        phase != "Terminating" && phase != "Failed"
                     }
+                    _ => true,
                 },
                 _ => true,
-            }).count();
-        trace!(
-            "cleanup_svc_if_unsupported - num_non_terminating_pods: {}",
-            num_non_terminating_pods
-        );
+            })
+            .count();
+        trace!("cleanup_svc_if_unsupported - num_non_terminating_pods: {}", num_non_terminating_pods);
 
         if num_non_terminating_pods == 0 {
             trace!(
                 "cleanup_svc_if_unsupported - service::remove_service app_name={:?}, namespace={:?}",
-                &svc_name, &svc_namespace
+                &svc_name,
+                &svc_namespace
             );
-            kube_interface
-                .remove_service(&svc_name, &svc_namespace)
-                .await?;
+            kube_interface.remove_service(&svc_name, &svc_namespace).await?;
             trace!("cleanup_svc_if_unsupported - service::remove_service succeeded");
         }
         Ok(())
@@ -390,47 +333,29 @@ impl BrokerPodWatcher {
         kube_interface: &impl KubeInterface,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         trace!("handle_running_pod - enter");
-        let namespace = pod.metadata.namespace.as_ref().ok_or(format!(
-            "Namespace not found for pod: {}",
-            &pod.metadata.name
-        ))?;
-        let (instance_name, configuration_name) =
-            self.get_instance_and_configuration_from_pod(pod)?;
-        let configuration = match kube_interface
-            .find_configuration(&configuration_name, &namespace)
-            .await
-        {
+        let namespace =
+            pod.metadata.namespace.as_ref().ok_or(format!("Namespace not found for pod: {}", &pod.metadata.name))?;
+        let (instance_name, configuration_name) = self.get_instance_and_configuration_from_pod(pod)?;
+        let configuration = match kube_interface.find_configuration(&configuration_name, &namespace).await {
             Ok(config) => config,
             _ => {
                 // In this scenario, a configuration has likely been deleted in the middle of handle_running_pod.
                 // There is no need to propogate the error and bring down the Controller.
-                trace!(
-                    "handle_running_pod - no configuration found for {}",
-                    &configuration_name
-                );
+                trace!("handle_running_pod - no configuration found for {}", &configuration_name);
                 return Ok(());
             }
         };
-        let instance = match kube_interface
-            .find_instance(&instance_name, &namespace)
-            .await
-        {
+        let instance = match kube_interface.find_instance(&instance_name, &namespace).await {
             Ok(instance) => instance,
             _ => {
                 // In this scenario, a instance has likely been deleted in the middle of handle_running_pod.
                 // There is no need to propogate the error and bring down the Controller.
-                trace!(
-                    "handle_running_pod - no instance found for {}",
-                    &instance_name
-                );
+                trace!("handle_running_pod - no instance found for {}", &instance_name);
                 return Ok(());
             }
         };
-        let instance_uid = instance
-            .metadata
-            .uid
-            .as_ref()
-            .ok_or(format!("UID not found for instance: {}", instance_name))?;
+        let instance_uid =
+            instance.metadata.uid.as_ref().ok_or(format!("UID not found for instance: {}", instance_name))?;
         self.add_instance_and_configuration_services(
             &instance_name,
             &instance_uid,
@@ -457,30 +382,22 @@ impl BrokerPodWatcher {
         is_instance_service: bool,
         kube_interface: &impl KubeInterface,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-        trace!(
-            "create_or_update_service - instance={:?} with ownership:{:?}",
-            instance_name,
-            &ownership
-        );
+        trace!("create_or_update_service - instance={:?} with ownership:{:?}", instance_name, &ownership);
 
         let mut create_new_service = true;
-        if let Ok(existing_svcs) = kube_interface
-            .find_services(&format!("{}={}", label_name, label_value))
-            .await
-        {
+        if let Ok(existing_svcs) = kube_interface.find_services(&format!("{}={}", label_name, label_value)).await {
             for existing_svc in existing_svcs {
                 let mut existing_svc = existing_svc.clone();
                 let svc_name = existing_svc.metadata.name.clone();
                 let svc_namespace = existing_svc.metadata.namespace.as_ref().unwrap().clone();
-                trace!(
-                    "create_or_update_service - Update existing svc={:?}",
-                    &svc_name
-                );
+                trace!("create_or_update_service - Update existing svc={:?}", &svc_name);
                 service::update_ownership(&mut existing_svc, ownership.clone(), true)?;
-                trace!("create_or_update_service - calling service::update_service name:{} namespace: {}", &svc_name, &svc_namespace);
-                kube_interface
-                    .update_service(&existing_svc, &svc_name, &svc_namespace)
-                    .await?;
+                trace!(
+                    "create_or_update_service - calling service::update_service name:{} namespace: {}",
+                    &svc_name,
+                    &svc_namespace
+                );
+                kube_interface.update_service(&existing_svc, &svc_name, &svc_namespace).await?;
                 trace!("create_or_update_service - service::update_service succeeded");
                 create_new_service = false;
             }
@@ -495,14 +412,9 @@ impl BrokerPodWatcher {
                 service_spec,
                 is_instance_service,
             )?;
-            trace!(
-                "create_or_update_service - New instance svc spec={:?}",
-                new_instance_svc
-            );
+            trace!("create_or_update_service - New instance svc spec={:?}", new_instance_svc);
 
-            kube_interface
-                .create_service(&new_instance_svc, &namespace)
-                .await?;
+            kube_interface.create_service(&new_instance_svc, &namespace).await?;
             trace!("create_or_update_service - service::create_service succeeded");
         }
         Ok(())
@@ -518,17 +430,11 @@ impl BrokerPodWatcher {
         configuration: &KubeAkriConfig,
         kube_interface: &impl KubeInterface,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-        trace!(
-            "add_instance_and_configuration_services - instance={:?}",
-            instance_name
-        );
+        trace!("add_instance_and_configuration_services - instance={:?}", instance_name);
 
         if let Some(instance_service_spec) = &configuration.spec.instance_service_spec {
-            let ownership = OwnershipInfo::new(
-                OwnershipType::Instance,
-                instance_name.to_string(),
-                instance_uid.to_string(),
-            );
+            let ownership =
+                OwnershipInfo::new(OwnershipType::Instance, instance_name.to_string(), instance_uid.to_string());
             // Try up to MAX_INSTANCE_UPDATE_TRIES times to update/create/get instance
             for x in 0..MAX_INSTANCE_UPDATE_TRIES {
                 match self
@@ -557,10 +463,11 @@ impl BrokerPodWatcher {
         }
 
         if let Some(configuration_service_spec) = &configuration.spec.configuration_service_spec {
-            let configuration_uid = configuration.metadata.uid.as_ref().ok_or(format!(
-                "UID not found for configuration: {}",
-                configuration_name
-            ))?;
+            let configuration_uid = configuration
+                .metadata
+                .uid
+                .as_ref()
+                .ok_or(format!("UID not found for configuration: {}", configuration_name))?;
             let ownership = OwnershipInfo::new(
                 OwnershipType::Configuration,
                 configuration_name.to_string(),
@@ -606,10 +513,8 @@ mod tests {
 
     fn create_pods_with_phase(result_file: &'static str, specified_phase: &'static str) -> PodList {
         let pods_json = file::read_file_to_string(result_file);
-        let phase_adjusted_json = pods_json.replace(
-            "\"phase\": \"Running\"",
-            &format!("\"phase\": \"{}\"", specified_phase),
-        );
+        let phase_adjusted_json =
+            pods_json.replace("\"phase\": \"Running\"", &format!("\"phase\": \"{}\"", specified_phase));
         let pods: PodList = serde_json::from_str(&phase_adjusted_json).unwrap();
         pods
     }
@@ -641,32 +546,14 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         for phase in &["Unknown", "Pending"] {
-            let pod_list = create_pods_with_phase(
-                "../test/json/running-pod-list-for-config-a-local.json",
-                phase,
-            );
+            let pod_list = create_pods_with_phase("../test/json/running-pod-list-for-config-a-local.json", phase);
             let pod = pod_list.items.first().unwrap().clone();
             let mut pod_watcher = BrokerPodWatcher::new();
-            trace!(
-                "test_handle_pod_added_unready phase:{}, WatchEvent::Added",
-                &phase
-            );
-            pod_watcher
-                .handle_pod(WatchEvent::Added(pod), &MockKubeImpl::new())
-                .await
-                .unwrap();
-            trace!(
-                "test_handle_pod_added_unready pod_watcher:{:?}",
-                &pod_watcher
-            );
+            trace!("test_handle_pod_added_unready phase:{}, WatchEvent::Added", &phase);
+            pod_watcher.handle_pod(WatchEvent::Added(pod), &MockKubeImpl::new()).await.unwrap();
+            trace!("test_handle_pod_added_unready pod_watcher:{:?}", &pod_watcher);
             assert_eq!(1, pod_watcher.known_pods.len());
-            assert_eq!(
-                &PodState::Pending,
-                pod_watcher
-                    .known_pods
-                    .get(&"config-a-b494b6-pod".to_string())
-                    .unwrap()
-            )
+            assert_eq!(&PodState::Pending, pod_watcher.known_pods.get(&"config-a-b494b6-pod".to_string()).unwrap())
         }
     }
 
@@ -675,32 +562,14 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         for phase in &["Unknown", "Pending"] {
-            let pod_list = create_pods_with_phase(
-                "../test/json/running-pod-list-for-config-a-local.json",
-                phase,
-            );
+            let pod_list = create_pods_with_phase("../test/json/running-pod-list-for-config-a-local.json", phase);
             let pod = pod_list.items.first().unwrap().clone();
             let mut pod_watcher = BrokerPodWatcher::new();
-            trace!(
-                "test_handle_pod_modified_unready phase:{}, WatchEvent::Modified",
-                &phase
-            );
-            pod_watcher
-                .handle_pod(WatchEvent::Modified(pod), &MockKubeImpl::new())
-                .await
-                .unwrap();
-            trace!(
-                "test_handle_pod_added_unready pod_watcher:{:?}",
-                &pod_watcher
-            );
+            trace!("test_handle_pod_modified_unready phase:{}, WatchEvent::Modified", &phase);
+            pod_watcher.handle_pod(WatchEvent::Modified(pod), &MockKubeImpl::new()).await.unwrap();
+            trace!("test_handle_pod_added_unready pod_watcher:{:?}", &pod_watcher);
             assert_eq!(1, pod_watcher.known_pods.len());
-            assert_eq!(
-                &PodState::Pending,
-                pod_watcher
-                    .known_pods
-                    .get(&"config-a-b494b6-pod".to_string())
-                    .unwrap()
-            )
+            assert_eq!(&PodState::Pending, pod_watcher.known_pods.get(&"config-a-b494b6-pod".to_string()).unwrap())
         }
     }
 
@@ -708,8 +577,7 @@ mod tests {
     async fn test_handle_pod_modified_ready() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let pods_json =
-            file::read_file_to_string("../test/json/running-pod-list-for-config-a-local.json");
+        let pods_json = file::read_file_to_string("../test/json/running-pod-list-for-config-a-local.json");
         let pod_list: PodList = serde_json::from_str(&pods_json).unwrap();
         let pod = pod_list.items.first().unwrap().clone();
         let mut pod_watcher = BrokerPodWatcher::new();
@@ -744,30 +612,17 @@ mod tests {
             },
         );
 
-        pod_watcher
-            .handle_pod(WatchEvent::Modified(pod), &mock)
-            .await
-            .unwrap();
-        trace!(
-            "test_handle_pod_added_unready pod_watcher:{:?}",
-            &pod_watcher
-        );
+        pod_watcher.handle_pod(WatchEvent::Modified(pod), &mock).await.unwrap();
+        trace!("test_handle_pod_added_unready pod_watcher:{:?}", &pod_watcher);
         assert_eq!(1, pod_watcher.known_pods.len());
-        assert_eq!(
-            &PodState::Running,
-            pod_watcher
-                .known_pods
-                .get(&"config-a-b494b6-pod".to_string())
-                .unwrap()
-        )
+        assert_eq!(&PodState::Running, pod_watcher.known_pods.get(&"config-a-b494b6-pod".to_string()).unwrap())
     }
 
     #[tokio::test]
     async fn test_handle_pod_modified_ready_no_config() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let pods_json =
-            file::read_file_to_string("../test/json/running-pod-list-for-config-a-local.json");
+        let pods_json = file::read_file_to_string("../test/json/running-pod-list-for-config-a-local.json");
         let pod_list: PodList = serde_json::from_str(&pods_json).unwrap();
         let pod = pod_list.items.first().unwrap().clone();
         let mut pod_watcher = BrokerPodWatcher::new();
@@ -802,32 +657,17 @@ mod tests {
             },
         );
 
-        pod_watcher
-            .handle_pod(WatchEvent::Modified(pod), &mock)
-            .await
-            .unwrap();
-        trace!(
-            "test_handle_pod_modified_ready_no_config pod_watcher:{:?}",
-            &pod_watcher
-        );
+        pod_watcher.handle_pod(WatchEvent::Modified(pod), &mock).await.unwrap();
+        trace!("test_handle_pod_modified_ready_no_config pod_watcher:{:?}", &pod_watcher);
         assert_eq!(1, pod_watcher.known_pods.len());
-        assert_eq!(
-            &PodState::Running,
-            pod_watcher
-                .known_pods
-                .get(&"config-a-b494b6-pod".to_string())
-                .unwrap()
-        )
+        assert_eq!(&PodState::Running, pod_watcher.known_pods.get(&"config-a-b494b6-pod".to_string()).unwrap())
     }
 
     #[tokio::test]
     async fn test_handle_pod_modified_failed() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let pod_list = create_pods_with_phase(
-            "../test/json/running-pod-list-for-config-a-local.json",
-            "Failed",
-        );
+        let pod_list = create_pods_with_phase("../test/json/running-pod-list-for-config-a-local.json", "Failed");
         let pod = pod_list.items.first().unwrap().clone();
         let mut pod_watcher = BrokerPodWatcher::new();
         let mut mock = MockKubeImpl::new();
@@ -864,32 +704,17 @@ mod tests {
             },
         );
 
-        pod_watcher
-            .handle_pod(WatchEvent::Modified(pod), &mock)
-            .await
-            .unwrap();
-        trace!(
-            "test_handle_pod_added_unready pod_watcher:{:?}",
-            &pod_watcher
-        );
+        pod_watcher.handle_pod(WatchEvent::Modified(pod), &mock).await.unwrap();
+        trace!("test_handle_pod_added_unready pod_watcher:{:?}", &pod_watcher);
         assert_eq!(1, pod_watcher.known_pods.len());
-        assert_eq!(
-            &PodState::Ended,
-            pod_watcher
-                .known_pods
-                .get(&"config-a-b494b6-pod".to_string())
-                .unwrap()
-        )
+        assert_eq!(&PodState::Ended, pod_watcher.known_pods.get(&"config-a-b494b6-pod".to_string()).unwrap())
     }
 
     #[tokio::test]
     async fn test_handle_pod_deleted() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let pod_list = create_pods_with_phase(
-            "../test/json/running-pod-list-for-config-a-local.json",
-            "Failed",
-        );
+        let pod_list = create_pods_with_phase("../test/json/running-pod-list-for-config-a-local.json", "Failed");
         let pod = pod_list.items.first().unwrap().clone();
         let mut pod_watcher = BrokerPodWatcher::new();
         let mut mock = MockKubeImpl::new();
@@ -926,22 +751,10 @@ mod tests {
             },
         );
 
-        pod_watcher
-            .handle_pod(WatchEvent::Deleted(pod), &mock)
-            .await
-            .unwrap();
-        trace!(
-            "test_handle_pod_added_unready pod_watcher:{:?}",
-            &pod_watcher
-        );
+        pod_watcher.handle_pod(WatchEvent::Deleted(pod), &mock).await.unwrap();
+        trace!("test_handle_pod_added_unready pod_watcher:{:?}", &pod_watcher);
         assert_eq!(1, pod_watcher.known_pods.len());
-        assert_eq!(
-            &PodState::Deleted,
-            pod_watcher
-                .known_pods
-                .get(&"config-a-b494b6-pod".to_string())
-                .unwrap()
-        )
+        assert_eq!(&PodState::Deleted, pod_watcher.known_pods.get(&"config-a-b494b6-pod".to_string()).unwrap())
     }
 
     #[tokio::test]
@@ -950,45 +763,21 @@ mod tests {
 
         let phase = "Foo";
         {
-            let pod_list = create_pods_with_phase(
-                "../test/json/running-pod-list-for-config-a-local.json",
-                phase,
-            );
+            let pod_list = create_pods_with_phase("../test/json/running-pod-list-for-config-a-local.json", phase);
             let pod = pod_list.items.first().unwrap().clone();
             let mut pod_watcher = BrokerPodWatcher::new();
-            trace!(
-                "test_handle_pod_added_unready phase:{}, WatchEvent::Added",
-                &phase
-            );
-            pod_watcher
-                .handle_pod(WatchEvent::Added(pod), &MockKubeImpl::new())
-                .await
-                .unwrap();
-            trace!(
-                "test_handle_pod_added_unready pod_watcher:{:?}",
-                &pod_watcher
-            );
+            trace!("test_handle_pod_added_unready phase:{}, WatchEvent::Added", &phase);
+            pod_watcher.handle_pod(WatchEvent::Added(pod), &MockKubeImpl::new()).await.unwrap();
+            trace!("test_handle_pod_added_unready pod_watcher:{:?}", &pod_watcher);
             assert_eq!(0, pod_watcher.known_pods.len());
         }
         {
-            let pod_list = create_pods_with_phase(
-                "../test/json/running-pod-list-for-config-a-local.json",
-                phase,
-            );
+            let pod_list = create_pods_with_phase("../test/json/running-pod-list-for-config-a-local.json", phase);
             let pod = pod_list.items.first().unwrap().clone();
             let mut pod_watcher = BrokerPodWatcher::new();
-            trace!(
-                "test_handle_pod_added_unready phase:{}, WatchEvent::Added",
-                &phase
-            );
-            pod_watcher
-                .handle_pod(WatchEvent::Modified(pod), &MockKubeImpl::new())
-                .await
-                .unwrap();
-            trace!(
-                "test_handle_pod_added_unready pod_watcher:{:?}",
-                &pod_watcher
-            );
+            trace!("test_handle_pod_added_unready phase:{}, WatchEvent::Added", &phase);
+            pod_watcher.handle_pod(WatchEvent::Modified(pod), &MockKubeImpl::new()).await.unwrap();
+            trace!("test_handle_pod_added_unready pod_watcher:{:?}", &pod_watcher);
             assert_eq!(0, pod_watcher.known_pods.len());
         }
     }
@@ -997,101 +786,53 @@ mod tests {
     async fn test_handle_running_pod_if_needed_do_nothing() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let pods_json =
-            file::read_file_to_string("../test/json/running-pod-list-for-config-a-local.json");
+        let pods_json = file::read_file_to_string("../test/json/running-pod-list-for-config-a-local.json");
         let pod_list: PodList = serde_json::from_str(&pods_json).unwrap();
         let pod = pod_list.items.first().unwrap();
 
         let mut pod_watcher = BrokerPodWatcher::new();
-        pod_watcher
-            .known_pods
-            .insert("config-a-b494b6-pod".to_string(), PodState::Running);
-        pod_watcher
-            .handle_running_pod_if_needed(pod, &MockKubeImpl::new())
-            .await
-            .unwrap();
+        pod_watcher.known_pods.insert("config-a-b494b6-pod".to_string(), PodState::Running);
+        pod_watcher.handle_running_pod_if_needed(pod, &MockKubeImpl::new()).await.unwrap();
         assert_eq!(1, pod_watcher.known_pods.len());
-        assert_eq!(
-            &PodState::Running,
-            pod_watcher
-                .known_pods
-                .get(&"config-a-b494b6-pod".to_string())
-                .unwrap()
-        )
+        assert_eq!(&PodState::Running, pod_watcher.known_pods.get(&"config-a-b494b6-pod".to_string()).unwrap())
     }
 
     #[tokio::test]
     async fn test_handle_ended_pod_if_needed_do_nothing() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let pods_json =
-            file::read_file_to_string("../test/json/running-pod-list-for-config-a-local.json");
+        let pods_json = file::read_file_to_string("../test/json/running-pod-list-for-config-a-local.json");
         let pod_list: PodList = serde_json::from_str(&pods_json).unwrap();
         let pod = pod_list.items.first().unwrap();
 
         let mut pod_watcher = BrokerPodWatcher::new();
-        pod_watcher
-            .known_pods
-            .insert("config-a-b494b6-pod".to_string(), PodState::Ended);
-        pod_watcher
-            .handle_ended_pod_if_needed(pod, &MockKubeImpl::new())
-            .await
-            .unwrap();
+        pod_watcher.known_pods.insert("config-a-b494b6-pod".to_string(), PodState::Ended);
+        pod_watcher.handle_ended_pod_if_needed(pod, &MockKubeImpl::new()).await.unwrap();
         assert_eq!(1, pod_watcher.known_pods.len());
-        assert_eq!(
-            &PodState::Ended,
-            pod_watcher
-                .known_pods
-                .get(&"config-a-b494b6-pod".to_string())
-                .unwrap()
-        )
+        assert_eq!(&PodState::Ended, pod_watcher.known_pods.get(&"config-a-b494b6-pod".to_string()).unwrap())
     }
 
     #[tokio::test]
     async fn test_handle_deleted_pod_if_needed_do_nothing() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let pods_json =
-            file::read_file_to_string("../test/json/running-pod-list-for-config-a-local.json");
+        let pods_json = file::read_file_to_string("../test/json/running-pod-list-for-config-a-local.json");
         let pod_list: PodList = serde_json::from_str(&pods_json).unwrap();
         let pod = pod_list.items.first().unwrap();
 
         let mut pod_watcher = BrokerPodWatcher::new();
-        pod_watcher
-            .known_pods
-            .insert("config-a-b494b6-pod".to_string(), PodState::Deleted);
-        pod_watcher
-            .handle_deleted_pod_if_needed(pod, &MockKubeImpl::new())
-            .await
-            .unwrap();
+        pod_watcher.known_pods.insert("config-a-b494b6-pod".to_string(), PodState::Deleted);
+        pod_watcher.handle_deleted_pod_if_needed(pod, &MockKubeImpl::new()).await.unwrap();
         assert_eq!(1, pod_watcher.known_pods.len());
-        assert_eq!(
-            &PodState::Deleted,
-            pod_watcher
-                .known_pods
-                .get(&"config-a-b494b6-pod".to_string())
-                .unwrap()
-        )
+        assert_eq!(&PodState::Deleted, pod_watcher.known_pods.get(&"config-a-b494b6-pod".to_string()).unwrap())
     }
 
     #[test]
     fn test_get_pod_phase() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        for phase in &[
-            "Unknown",
-            "Pending",
-            "Running",
-            "Ended",
-            "Failed",
-            "Succeeded",
-            "Foo",
-            "",
-        ] {
-            let pod_list = create_pods_with_phase(
-                "../test/json/running-pod-list-for-config-a-local.json",
-                phase,
-            );
+        for phase in &["Unknown", "Pending", "Running", "Ended", "Failed", "Succeeded", "Foo", ""] {
+            let pod_list = create_pods_with_phase("../test/json/running-pod-list-for-config-a-local.json", phase);
             let pod = pod_list.items.first().unwrap().clone();
             let mut pod_watcher = BrokerPodWatcher::new();
 
@@ -1099,10 +840,7 @@ mod tests {
         }
 
         {
-            let pod_list = create_pods_with_phase(
-                "../test/json/running-pod-list-for-config-a-local.json",
-                "Foo",
-            );
+            let pod_list = create_pods_with_phase("../test/json/running-pod-list-for-config-a-local.json", "Foo");
             let mut pod = pod_list.items.first().unwrap().clone();
             pod.status = None;
 
@@ -1116,34 +854,19 @@ mod tests {
     fn test_get_instance_and_configuration_from_pod() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let pod_list = create_pods_with_phase(
-            "../test/json/running-pod-list-for-config-a-local.json",
-            "Foo",
-        );
+        let pod_list = create_pods_with_phase("../test/json/running-pod-list-for-config-a-local.json", "Foo");
         let orig_pod = pod_list.items.first().unwrap();
 
         let pod_watcher = BrokerPodWatcher::new();
-        assert!(pod_watcher
-            .get_instance_and_configuration_from_pod(orig_pod)
-            .is_ok());
+        assert!(pod_watcher.get_instance_and_configuration_from_pod(orig_pod).is_ok());
 
         let mut instanceless_pod = orig_pod.clone();
-        instanceless_pod
-            .metadata
-            .labels
-            .remove(AKRI_INSTANCE_LABEL_NAME);
-        assert!(pod_watcher
-            .get_instance_and_configuration_from_pod(&instanceless_pod)
-            .is_err());
+        instanceless_pod.metadata.labels.remove(AKRI_INSTANCE_LABEL_NAME);
+        assert!(pod_watcher.get_instance_and_configuration_from_pod(&instanceless_pod).is_err());
 
         let mut configurationless_pod = orig_pod.clone();
-        configurationless_pod
-            .metadata
-            .labels
-            .remove(AKRI_CONFIGURATION_LABEL_NAME);
-        assert!(pod_watcher
-            .get_instance_and_configuration_from_pod(&configurationless_pod)
-            .is_err());
+        configurationless_pod.metadata.labels.remove(AKRI_CONFIGURATION_LABEL_NAME);
+        assert!(pod_watcher.get_instance_and_configuration_from_pod(&configurationless_pod).is_err());
     }
 
     #[tokio::test]
@@ -1167,11 +890,7 @@ mod tests {
             "config-a-namespace",
             false,
         );
-        let ownership = OwnershipInfo::new(
-            OwnershipType::Instance,
-            "object".to_string(),
-            "object_uid".to_string(),
-        );
+        let ownership = OwnershipInfo::new(OwnershipType::Instance, "object".to_string(), "object_uid".to_string());
         pod_watcher
             .create_or_update_service(
                 "config-a-b494b6",
@@ -1203,17 +922,8 @@ mod tests {
             "../test/json/running-instance-svc-list-for-config-a-local.json",
             false,
         );
-        config_for_tests::configure_update_service(
-            &mut mock,
-            "node-a-config-a-b494b6-svc",
-            "config-a-namespace",
-            true,
-        );
-        let ownership = OwnershipInfo::new(
-            OwnershipType::Instance,
-            "object".to_string(),
-            "object_uid".to_string(),
-        );
+        config_for_tests::configure_update_service(&mut mock, "node-a-config-a-b494b6-svc", "config-a-namespace", true);
+        let ownership = OwnershipInfo::new(OwnershipType::Instance, "object".to_string(), "object_uid".to_string());
 
         assert!(pod_watcher
             .create_or_update_service(
@@ -1253,11 +963,7 @@ mod tests {
             AKRI_INSTANCE_LABEL_NAME,
             "config-a-b494b6",
         );
-        let ownership = OwnershipInfo::new(
-            OwnershipType::Instance,
-            "object".to_string(),
-            "object_uid".to_string(),
-        );
+        let ownership = OwnershipInfo::new(OwnershipType::Instance, "object".to_string(), "object_uid".to_string());
 
         pod_watcher
             .create_or_update_service(
@@ -1290,14 +996,9 @@ mod tests {
             "../test/json/empty-list.json",
             false,
         );
-        mock.expect_create_service()
-            .returning(move |_, _| Err(None.ok_or("failure")?));
+        mock.expect_create_service().returning(move |_, _| Err(None.ok_or("failure")?));
 
-        let ownership = OwnershipInfo::new(
-            OwnershipType::Instance,
-            "object".to_string(),
-            "object_uid".to_string(),
-        );
+        let ownership = OwnershipInfo::new(OwnershipType::Instance, "object".to_string(), "object_uid".to_string());
 
         assert!(pod_watcher
             .create_or_update_service(
@@ -1339,10 +1040,7 @@ mod tests {
         find_instance_result_error: bool,
     }
 
-    fn configure_for_cleanup_broker_and_configuration_svcs(
-        mock: &mut MockKubeImpl,
-        work: &CleanupServices,
-    ) {
+    fn configure_for_cleanup_broker_and_configuration_svcs(mock: &mut MockKubeImpl, work: &CleanupServices) {
         for i in 0..work.cleanup_services.len() {
             let cleanup_service = &work.cleanup_services[i];
             config_for_tests::configure_find_pods(

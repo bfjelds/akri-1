@@ -18,20 +18,11 @@ impl DiscoveryResult {
         let mut id_to_digest = id_to_digest.to_string();
         // For unshared devices, include node hostname in id_to_digest so instances have unique names
         if !shared {
-            id_to_digest = format!(
-                "{}{}",
-                &id_to_digest,
-                std::env::var("AGENT_NODE_NAME").unwrap()
-            );
+            id_to_digest = format!("{}{}", &id_to_digest, std::env::var("AGENT_NODE_NAME").unwrap());
         }
         let mut hasher = VarBlake2b::new(3).unwrap();
         hasher.input(id_to_digest);
-        let digest = hasher
-            .vec_result()
-            .iter()
-            .map(|num| format!("{:02x}", num))
-            .collect::<Vec<String>>()
-            .join("");
+        let digest = hasher.vec_result().iter().map(|num| format!("{:02x}", num)).collect::<Vec<String>>().join("");
         DiscoveryResult { digest, properties }
     }
 }
@@ -114,10 +105,7 @@ mod test {
         let opcua_json = r#"{"opcua":{}}"#;
         let deserialized: ProtocolHandler = serde_json::from_str(opcua_json).unwrap();
         let discovery_handler = inner_get_discovery_handler(&deserialized, &mock_query).unwrap();
-        assert!(
-            discovery_handler.discover().await.is_err(),
-            "OPC protocol handler not implemented"
-        );
+        assert!(discovery_handler.discover().await.is_err(), "OPC protocol handler not implemented");
 
         let json = r#"{}"#;
         assert!(serde_json::from_str::<Configuration>(json).is_err());
@@ -139,35 +127,20 @@ mod test {
         let deserialized: Configuration = serde_json::from_str(json).unwrap();
 
         let mut mock_query_without_var_set = MockEnvVarQuery::new();
-        mock_query_without_var_set
-            .expect_get_env_var()
-            .returning(|_| Err(VarError::NotPresent));
-        if inner_get_discovery_handler(&deserialized.protocol, &mock_query_without_var_set).is_ok()
-        {
-            panic!("protocol configuration as debugEcho should return error when 'ENABLE_DEBUG_ECHO' env var is not set")
+        mock_query_without_var_set.expect_get_env_var().returning(|_| Err(VarError::NotPresent));
+        if inner_get_discovery_handler(&deserialized.protocol, &mock_query_without_var_set).is_ok() {
+            panic!(
+                "protocol configuration as debugEcho should return error when 'ENABLE_DEBUG_ECHO' env var is not set"
+            )
         }
 
         let mut mock_query_with_var_set = MockEnvVarQuery::new();
-        mock_query_with_var_set
-            .expect_get_env_var()
-            .returning(|_| Ok("1".to_string()));
+        mock_query_with_var_set.expect_get_env_var().returning(|_| Ok("1".to_string()));
         let pi = DiscoveryResult::new(&"foo1".to_string(), HashMap::new(), true);
         let debug_echo_discovery_handler =
             inner_get_discovery_handler(&deserialized.protocol, &mock_query_with_var_set).unwrap();
         assert_eq!(true, debug_echo_discovery_handler.are_shared().unwrap());
-        assert_eq!(
-            1,
-            debug_echo_discovery_handler.discover().await.unwrap().len()
-        );
-        assert_eq!(
-            pi.digest,
-            debug_echo_discovery_handler
-                .discover()
-                .await
-                .unwrap()
-                .get(0)
-                .unwrap()
-                .digest
-        );
+        assert_eq!(1, debug_echo_discovery_handler.discover().await.unwrap().len());
+        assert_eq!(pi.digest, debug_echo_discovery_handler.discover().await.unwrap().get(0).unwrap().digest);
     }
 }

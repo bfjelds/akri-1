@@ -1,19 +1,15 @@
 use super::{
     super::akri::API_NAMESPACE,
-    pod::{
-        AKRI_CONFIGURATION_LABEL_NAME, AKRI_INSTANCE_LABEL_NAME, APP_LABEL_ID, CONTROLLER_LABEL_ID,
-    },
+    pod::{AKRI_CONFIGURATION_LABEL_NAME, AKRI_INSTANCE_LABEL_NAME, APP_LABEL_ID, CONTROLLER_LABEL_ID},
     OwnershipInfo, ERROR_NOT_FOUND,
 };
 use either::Either;
 use k8s_openapi::api::core::v1::{Service, ServiceSpec, ServiceStatus};
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::{
-    ObjectMeta, OwnerReference as K8sOwnerReference,
-};
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference as K8sOwnerReference};
 use kube::{
     api::{
-        Api, DeleteParams, ListParams, Object, ObjectList, OwnerReference as KubeOwnerReference,
-        PatchParams, PostParams,
+        Api, DeleteParams, ListParams, Object, ObjectList, OwnerReference as KubeOwnerReference, PatchParams,
+        PostParams,
     },
     client::APIClient,
 };
@@ -41,16 +37,10 @@ use std::collections::BTreeMap;
 pub async fn find_services_with_selector(
     selector: &str,
     kube_client: APIClient,
-) -> Result<
-    ObjectList<Object<ServiceSpec, ServiceStatus>>,
-    Box<dyn std::error::Error + Send + Sync + 'static>,
-> {
+) -> Result<ObjectList<Object<ServiceSpec, ServiceStatus>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     trace!("find_services_with_selector with selector={:?}", &selector);
     let svcs = Api::v1Service(kube_client);
-    let svc_list_params = ListParams {
-        label_selector: Some(selector.to_string()),
-        ..Default::default()
-    };
+    let svc_list_params = ListParams { label_selector: Some(selector.to_string()), ..Default::default() };
     trace!("find_services_with_selector PRE svcs.list(...).await?");
     let result = svcs.list(&svc_list_params).await;
     trace!("find_services_with_selector return");
@@ -122,25 +112,14 @@ pub fn create_new_service_from_spec(
     svc_spec: &ServiceSpec,
     node_specific_svc: bool,
 ) -> Result<Service, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let app_name = create_service_app_name(
-        &configuration_name,
-        &instance_name,
-        &"svc".to_string(),
-        node_specific_svc,
-    );
+    let app_name = create_service_app_name(&configuration_name, &instance_name, &"svc".to_string(), node_specific_svc);
     let mut labels: BTreeMap<String, String> = BTreeMap::new();
     labels.insert(APP_LABEL_ID.to_string(), app_name.clone());
     labels.insert(CONTROLLER_LABEL_ID.to_string(), API_NAMESPACE.to_string());
     if node_specific_svc {
-        labels.insert(
-            AKRI_INSTANCE_LABEL_NAME.to_string(),
-            instance_name.to_string(),
-        );
+        labels.insert(AKRI_INSTANCE_LABEL_NAME.to_string(), instance_name.to_string());
     } else {
-        labels.insert(
-            AKRI_CONFIGURATION_LABEL_NAME.to_string(),
-            configuration_name.to_string(),
-        );
+        labels.insert(AKRI_CONFIGURATION_LABEL_NAME.to_string(), configuration_name.to_string());
     }
 
     let owner_references: Vec<K8sOwnerReference> = vec![K8sOwnerReference {
@@ -164,15 +143,9 @@ pub fn create_new_service_from_spec(
     }
     modified_selector.insert(CONTROLLER_LABEL_ID.to_string(), API_NAMESPACE.to_string());
     if node_specific_svc {
-        modified_selector.insert(
-            AKRI_INSTANCE_LABEL_NAME.to_string(),
-            instance_name.to_string(),
-        );
+        modified_selector.insert(AKRI_INSTANCE_LABEL_NAME.to_string(), instance_name.to_string());
     } else {
-        modified_selector.insert(
-            AKRI_CONFIGURATION_LABEL_NAME.to_string(),
-            configuration_name.to_string(),
-        );
+        modified_selector.insert(AKRI_CONFIGURATION_LABEL_NAME.to_string(), configuration_name.to_string());
     }
     spec.selector = Some(modified_selector);
 
@@ -239,23 +212,15 @@ pub fn update_ownership(
         }];
     } else {
         // Add ownership to list IFF the UID doesn't already exist
-        if !svc_to_update
-            .metadata
-            .ownerReferences
-            .iter()
-            .any(|x| x.uid == ownership.get_uid())
-        {
-            svc_to_update
-                .metadata
-                .ownerReferences
-                .push(KubeOwnerReference {
-                    apiVersion: ownership.get_api_version(),
-                    kind: ownership.get_kind(),
-                    controller: ownership.get_controller(),
-                    blockOwnerDeletion: ownership.get_block_owner_deletion(),
-                    name: ownership.get_name(),
-                    uid: ownership.get_uid(),
-                });
+        if !svc_to_update.metadata.ownerReferences.iter().any(|x| x.uid == ownership.get_uid()) {
+            svc_to_update.metadata.ownerReferences.push(KubeOwnerReference {
+                apiVersion: ownership.get_api_version(),
+                kind: ownership.get_kind(),
+                controller: ownership.get_controller(),
+                blockOwnerDeletion: ownership.get_block_owner_deletion(),
+                name: ownership.get_name(),
+                uid: ownership.get_uid(),
+            });
         }
     }
     Ok(())
@@ -276,40 +241,20 @@ mod svcspec_tests {
 
         assert_eq!(
             "node-a-suffix",
-            create_service_app_name(
-                &"foo".to_string(),
-                &"node.a".to_string(),
-                &"suffix".to_string(),
-                true
-            )
+            create_service_app_name(&"foo".to_string(), &"node.a".to_string(), &"suffix".to_string(), true)
         );
         assert_eq!(
             "foo-suffix",
-            create_service_app_name(
-                &"foo".to_string(),
-                &"node.a".to_string(),
-                &"suffix".to_string(),
-                false
-            )
+            create_service_app_name(&"foo".to_string(), &"node.a".to_string(), &"suffix".to_string(), false)
         );
 
         assert_eq!(
             "node-a-suffix",
-            create_service_app_name(
-                &"foo".to_string(),
-                &"node-a".to_string(),
-                &"suffix".to_string(),
-                true
-            )
+            create_service_app_name(&"foo".to_string(), &"node-a".to_string(), &"suffix".to_string(), true)
         );
         assert_eq!(
             "foo-suffix",
-            create_service_app_name(
-                &"foo".to_string(),
-                &"node-a".to_string(),
-                &"suffix".to_string(),
-                false
-            )
+            create_service_app_name(&"foo".to_string(), &"node-a".to_string(), &"suffix".to_string(), false)
         );
     }
 
@@ -321,10 +266,7 @@ mod svcspec_tests {
             metadata: ObjectMeta::default(),
             spec: ServiceSpec::default(),
             status: Some(ServiceStatus::default()),
-            types: TypeMeta {
-                apiVersion: None,
-                kind: None,
-            },
+            types: TypeMeta { apiVersion: None, kind: None },
         };
 
         assert_eq!(0, svc.metadata.ownerReferences.len());
@@ -366,10 +308,7 @@ mod svcspec_tests {
             metadata: ObjectMeta::default(),
             spec: ServiceSpec::default(),
             status: Some(ServiceStatus::default()),
-            types: TypeMeta {
-                apiVersion: None,
-                kind: None,
-            },
+            types: TypeMeta { apiVersion: None, kind: None },
         };
 
         assert_eq!(0, svc.metadata.ownerReferences.len());
@@ -436,14 +375,8 @@ mod svcspec_tests {
 
         for node_specific_svc in &[true, false] {
             let mut preexisting_selector = BTreeMap::new();
-            preexisting_selector.insert(
-                "do-not-change".to_string(),
-                "this-node-selector".to_string(),
-            );
-            let svc_spec = ServiceSpec {
-                selector: Some(preexisting_selector),
-                ..Default::default()
-            };
+            preexisting_selector.insert("do-not-change".to_string(), "this-node-selector".to_string());
+            let svc_spec = ServiceSpec { selector: Some(preexisting_selector), ..Default::default() };
 
             let svc = create_new_service_from_spec(
                 &svc_namespace,
@@ -455,120 +388,37 @@ mod svcspec_tests {
             )
             .unwrap();
 
-            let app_name = create_service_app_name(
-                &configuration_name,
-                &instance_name,
-                &"svc".to_string(),
-                *node_specific_svc,
-            );
+            let app_name =
+                create_service_app_name(&configuration_name, &instance_name, &"svc".to_string(), *node_specific_svc);
 
             // Validate the metadata name/namesapce
             assert_eq!(&app_name, &svc.metadata.clone().unwrap().name.unwrap());
-            assert_eq!(
-                &svc_namespace,
-                &svc.metadata.clone().unwrap().namespace.unwrap()
-            );
+            assert_eq!(&svc_namespace, &svc.metadata.clone().unwrap().namespace.unwrap());
 
             // Validate the labels added
-            assert_eq!(
-                &&app_name,
-                &svc.metadata
-                    .clone()
-                    .unwrap()
-                    .labels
-                    .unwrap()
-                    .get(APP_LABEL_ID)
-                    .unwrap()
-            );
+            assert_eq!(&&app_name, &svc.metadata.clone().unwrap().labels.unwrap().get(APP_LABEL_ID).unwrap());
             assert_eq!(
                 &&API_NAMESPACE.to_string(),
-                &svc.metadata
-                    .clone()
-                    .unwrap()
-                    .labels
-                    .unwrap()
-                    .get(CONTROLLER_LABEL_ID)
-                    .unwrap()
+                &svc.metadata.clone().unwrap().labels.unwrap().get(CONTROLLER_LABEL_ID).unwrap()
             );
             if *node_specific_svc {
                 assert_eq!(
                     &&instance_name,
-                    &svc.metadata
-                        .clone()
-                        .unwrap()
-                        .labels
-                        .unwrap()
-                        .get(AKRI_INSTANCE_LABEL_NAME)
-                        .unwrap()
+                    &svc.metadata.clone().unwrap().labels.unwrap().get(AKRI_INSTANCE_LABEL_NAME).unwrap()
                 );
             } else {
                 assert_eq!(
                     &&configuration_name,
-                    &svc.metadata
-                        .clone()
-                        .unwrap()
-                        .labels
-                        .unwrap()
-                        .get(AKRI_CONFIGURATION_LABEL_NAME)
-                        .unwrap()
+                    &svc.metadata.clone().unwrap().labels.unwrap().get(AKRI_CONFIGURATION_LABEL_NAME).unwrap()
                 );
             }
 
             // Validate ownerReference
-            assert_eq!(
-                object_name,
-                svc.metadata
-                    .clone()
-                    .unwrap()
-                    .owner_references
-                    .unwrap()
-                    .get(0)
-                    .unwrap()
-                    .name
-            );
-            assert_eq!(
-                object_uid,
-                svc.metadata
-                    .clone()
-                    .unwrap()
-                    .owner_references
-                    .unwrap()
-                    .get(0)
-                    .unwrap()
-                    .uid
-            );
-            assert_eq!(
-                "Pod",
-                &svc.metadata
-                    .clone()
-                    .unwrap()
-                    .owner_references
-                    .unwrap()
-                    .get(0)
-                    .unwrap()
-                    .kind
-            );
-            assert_eq!(
-                "core/v1",
-                &svc.metadata
-                    .clone()
-                    .unwrap()
-                    .owner_references
-                    .unwrap()
-                    .get(0)
-                    .unwrap()
-                    .api_version
-            );
-            assert!(svc
-                .metadata
-                .clone()
-                .unwrap()
-                .owner_references
-                .unwrap()
-                .get(0)
-                .unwrap()
-                .controller
-                .unwrap());
+            assert_eq!(object_name, svc.metadata.clone().unwrap().owner_references.unwrap().get(0).unwrap().name);
+            assert_eq!(object_uid, svc.metadata.clone().unwrap().owner_references.unwrap().get(0).unwrap().uid);
+            assert_eq!("Pod", &svc.metadata.clone().unwrap().owner_references.unwrap().get(0).unwrap().kind);
+            assert_eq!("core/v1", &svc.metadata.clone().unwrap().owner_references.unwrap().get(0).unwrap().api_version);
+            assert!(svc.metadata.clone().unwrap().owner_references.unwrap().get(0).unwrap().controller.unwrap());
             assert!(svc
                 .metadata
                 .clone()
@@ -583,50 +433,22 @@ mod svcspec_tests {
             // Validate the existing selector unchanged
             assert_eq!(
                 &&"this-node-selector".to_string(),
-                &svc.spec
-                    .as_ref()
-                    .unwrap()
-                    .selector
-                    .as_ref()
-                    .unwrap()
-                    .get("do-not-change")
-                    .unwrap()
+                &svc.spec.as_ref().unwrap().selector.as_ref().unwrap().get("do-not-change").unwrap()
             );
             // Validate the selector added
             assert_eq!(
                 &&API_NAMESPACE.to_string(),
-                &svc.spec
-                    .as_ref()
-                    .unwrap()
-                    .selector
-                    .as_ref()
-                    .unwrap()
-                    .get(CONTROLLER_LABEL_ID)
-                    .unwrap()
+                &svc.spec.as_ref().unwrap().selector.as_ref().unwrap().get(CONTROLLER_LABEL_ID).unwrap()
             );
             if *node_specific_svc {
                 assert_eq!(
                     &&instance_name,
-                    &svc.spec
-                        .as_ref()
-                        .unwrap()
-                        .selector
-                        .as_ref()
-                        .unwrap()
-                        .get(AKRI_INSTANCE_LABEL_NAME)
-                        .unwrap()
+                    &svc.spec.as_ref().unwrap().selector.as_ref().unwrap().get(AKRI_INSTANCE_LABEL_NAME).unwrap()
                 );
             } else {
                 assert_eq!(
                     &&configuration_name,
-                    &svc.spec
-                        .as_ref()
-                        .unwrap()
-                        .selector
-                        .as_ref()
-                        .unwrap()
-                        .get(AKRI_CONFIGURATION_LABEL_NAME)
-                        .unwrap()
+                    &svc.spec.as_ref().unwrap().selector.as_ref().unwrap().get(AKRI_CONFIGURATION_LABEL_NAME).unwrap()
                 );
             }
         }
@@ -660,10 +482,7 @@ pub async fn create_service(
     info!("create_service svcs.create(...).await?:");
     match services.create(&PostParams::default(), svc_as_u8).await {
         Ok(created_svc) => {
-            info!(
-                "create_service services.create return: {:?}",
-                created_svc.metadata.name
-            );
+            info!("create_service services.create return: {:?}", created_svc.metadata.name);
             Ok(())
         }
         Err(kube::Error::Api(ae)) => {
@@ -675,11 +494,7 @@ pub async fn create_service(
             Ok(())
         }
         Err(e) => {
-            error!(
-                "create_service services.create [{:?}] error: {:?}",
-                serde_json::to_string(&svc_to_create),
-                e
-            );
+            error!("create_service services.create [{:?}] error: {:?}", serde_json::to_string(&svc_to_create), e);
             Err(e.into())
         }
     }
@@ -711,10 +526,7 @@ pub async fn remove_service(
     match svcs.delete(svc_to_remove, &DeleteParams::default()).await {
         Ok(deleted_svc) => match deleted_svc {
             Either::Left(spec) => {
-                info!(
-                    "remove_service svcs.delete return: {:?}",
-                    &spec.metadata.name
-                );
+                info!("remove_service svcs.delete return: {:?}", &spec.metadata.name);
                 Ok(())
             }
             Either::Right(status) => {
@@ -727,18 +539,12 @@ pub async fn remove_service(
                 trace!("remove_service - service already deleted");
                 Ok(())
             } else {
-                error!(
-                    "remove_service svcs.delete [{:?}] returned kube error: {:?}",
-                    &svc_to_remove, ae
-                );
+                error!("remove_service svcs.delete [{:?}] returned kube error: {:?}", &svc_to_remove, ae);
                 Err(ae.into())
             }
         }
         Err(e) => {
-            error!(
-                "remove_service svcs.delete [{:?}] error: {:?}",
-                &svc_to_remove, e
-            );
+            error!("remove_service svcs.delete [{:?}] error: {:?}", &svc_to_remove, e);
             Err(e.into())
         }
     }
@@ -775,11 +581,7 @@ pub async fn update_service(
     namespace: &str,
     kube_client: APIClient,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    trace!(
-        "update_service enter name:{} namespace: {}",
-        &name,
-        &namespace
-    );
+    trace!("update_service enter name:{} namespace: {}", &name, &namespace);
     let svcs = Api::v1Service(kube_client).within(&namespace);
     let svc_as_u8 = serde_json::to_vec(&svc_to_update)?;
 
@@ -790,10 +592,7 @@ pub async fn update_service(
             Ok(())
         }
         Err(kube::Error::Api(ae)) => {
-            log::trace!(
-                "update_service kube_client.request returned kube error: {:?}",
-                ae
-            );
+            log::trace!("update_service kube_client.request returned kube error: {:?}", ae);
             Err(ae.into())
         }
         Err(e) => {

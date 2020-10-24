@@ -14,9 +14,7 @@ pub struct UdevDiscoveryHandler {
 
 impl UdevDiscoveryHandler {
     pub fn new(discovery_handler_config: &UdevDiscoveryHandlerConfig) -> Self {
-        UdevDiscoveryHandler {
-            discovery_handler_config: discovery_handler_config.clone(),
-        }
+        UdevDiscoveryHandler { discovery_handler_config: discovery_handler_config.clone() }
     }
 }
 
@@ -32,16 +30,10 @@ impl DiscoveryHandler for UdevDiscoveryHandler {
                 Ok(paths) => paths.into_iter().for_each(|path| {
                     devpaths.insert(path);
                 }),
-                Err(e) => error!(
-                    "discover - for rule {} do_parse_and_find returned error {}",
-                    rule, e
-                ),
+                Err(e) => error!("discover - for rule {} do_parse_and_find returned error {}", rule, e),
             }
         });
-        trace!(
-            "discover - mapping and returning devices at devpaths {:?}",
-            devpaths
-        );
+        trace!("discover - mapping and returning devices at devpaths {:?}", devpaths);
         Ok(devpaths
             .into_iter()
             .map(|path| {

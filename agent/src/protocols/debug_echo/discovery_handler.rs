@@ -24,21 +24,15 @@ pub struct DebugEchoDiscoveryHandler {
 
 impl DebugEchoDiscoveryHandler {
     pub fn new(discovery_handler_config: &DebugEchoDiscoveryHandlerConfig) -> Self {
-        DebugEchoDiscoveryHandler {
-            discovery_handler_config: discovery_handler_config.clone(),
-        }
+        DebugEchoDiscoveryHandler { discovery_handler_config: discovery_handler_config.clone() }
     }
 }
 
 #[async_trait]
 impl DiscoveryHandler for DebugEchoDiscoveryHandler {
     async fn discover(&self) -> Result<Vec<DiscoveryResult>, Error> {
-        let availability =
-            fs::read_to_string(DEBUG_ECHO_AVAILABILITY_CHECK_PATH).unwrap_or_default();
-        trace!(
-            "discover -- DebugEcho capabilities visible? {}",
-            !availability.contains(OFFLINE)
-        );
+        let availability = fs::read_to_string(DEBUG_ECHO_AVAILABILITY_CHECK_PATH).unwrap_or_default();
+        trace!("discover -- DebugEcho capabilities visible? {}", !availability.contains(OFFLINE));
         // If the device is offline, return an empty list of instance info
         if availability.contains(OFFLINE) {
             Ok(Vec::new())
@@ -47,9 +41,7 @@ impl DiscoveryHandler for DebugEchoDiscoveryHandler {
                 .discovery_handler_config
                 .descriptions
                 .iter()
-                .map(|description| {
-                    DiscoveryResult::new(description, HashMap::new(), self.are_shared().unwrap())
-                })
+                .map(|description| DiscoveryResult::new(description, HashMap::new(), self.are_shared().unwrap()))
                 .collect::<Vec<DiscoveryResult>>())
         }
     }

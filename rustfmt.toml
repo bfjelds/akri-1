@@ -1,1 +1,7 @@
 # Use default rust format
+
+# Maximum width of each line
+max_width = 120
+
+# Width heuristics
+use_small_heuristics = "max"

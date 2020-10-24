@@ -178,28 +178,18 @@ pub async fn get_configurations(
     kube_client: &APIClient,
 ) -> Result<KubeAkriConfigList, Box<dyn std::error::Error + Send + Sync + 'static>> {
     log::trace!("get_configurations enter");
-    let akri_config_type = RawApi::customResource(API_CONFIGURATIONS)
-        .group(API_NAMESPACE)
-        .version(API_VERSION);
+    let akri_config_type = RawApi::customResource(API_CONFIGURATIONS).group(API_NAMESPACE).version(API_VERSION);
 
     log::trace!("get_configurations kube_client.request::<KubeAkriInstanceList>(akri_config_type.list(...)?).await?");
 
-    let dcc_list_params = ListParams {
-        ..Default::default()
-    };
-    match kube_client
-        .request::<KubeAkriConfigList>(akri_config_type.list(&dcc_list_params)?)
-        .await
-    {
+    let dcc_list_params = ListParams { ..Default::default() };
+    match kube_client.request::<KubeAkriConfigList>(akri_config_type.list(&dcc_list_params)?).await {
         Ok(configs_retrieved) => {
             log::trace!("get_configurations return");
             Ok(configs_retrieved)
         }
         Err(kube::Error::Api(ae)) => {
-            log::trace!(
-                "get_configurations kube_client.request returned kube error: {:?}",
-                ae
-            );
+            log::trace!("get_configurations kube_client.request returned kube error: {:?}", ae);
             Err(ae.into())
         }
         Err(e) => {
@@ -233,26 +223,18 @@ pub async fn find_configuration(
     kube_client: &APIClient,
 ) -> Result<KubeAkriConfig, Box<dyn std::error::Error + Send + Sync + 'static>> {
     log::trace!("find_configuration enter");
-    let akri_config_type = RawApi::customResource(API_CONFIGURATIONS)
-        .group(API_NAMESPACE)
-        .version(API_VERSION)
-        .within(&namespace);
+    let akri_config_type =
+        RawApi::customResource(API_CONFIGURATIONS).group(API_NAMESPACE).version(API_VERSION).within(&namespace);
 
     log::trace!("find_configuration kube_client.request::<KubeAkriConfig>(akri_config_type.get(...)?).await?");
 
-    match kube_client
-        .request::<KubeAkriConfig>(akri_config_type.get(&name)?)
-        .await
-    {
+    match kube_client.request::<KubeAkriConfig>(akri_config_type.get(&name)?).await {
         Ok(config_retrieved) => {
             log::trace!("find_configuration return");
             Ok(config_retrieved)
         }
         Err(kube::Error::Api(ae)) => {
-            log::trace!(
-                "find_configuration kube_client.request returned kube error: {:?}",
-                ae
-            );
+            log::trace!("find_configuration kube_client.request returned kube error: {:?}", ae);
             Err(ae.into())
         }
         Err(e) => {
@@ -339,7 +321,8 @@ mod crd_serializeation_tests {
         assert_eq!(0, deserialized.properties.len());
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
-        let expected_deserialized = r#"{"protocol":{"onvif":{"discoveryTimeoutSeconds":5}},"capacity":4,"units":"slaphappies"}"#;
+        let expected_deserialized =
+            r#"{"protocol":{"onvif":{"discoveryTimeoutSeconds":5}},"capacity":4,"units":"slaphappies"}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 

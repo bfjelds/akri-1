@@ -46,10 +46,7 @@ pub mod udev_device {
         device.mockable_sysname()
     }
 
-    pub fn get_property_value<'a, 'b>(
-        device: &'a impl DeviceExt,
-        property: &'b str,
-    ) -> Option<&'a OsStr> {
+    pub fn get_property_value<'a, 'b>(device: &'a impl DeviceExt, property: &'b str) -> Option<&'a OsStr> {
         device.mockable_property_value(property)
     }
 
@@ -87,9 +84,7 @@ pub mod udev_enumerator {
 
     impl EnumeratorImpl {
         fn new() -> Self {
-            EnumeratorImpl {
-                inner_enumerator: udev::Enumerator::new().unwrap(),
-            }
+            EnumeratorImpl { inner_enumerator: udev::Enumerator::new().unwrap() }
         }
     }
 

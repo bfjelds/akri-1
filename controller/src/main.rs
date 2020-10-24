@@ -14,15 +14,9 @@ pub const SYSTEM_CHECK_DELAY_SECS: u64 = 30;
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     println!("{} Controller start", API_NAMESPACE);
 
-    println!(
-        "{} KUBERNETES_PORT found ... env_logger::init",
-        API_NAMESPACE
-    );
+    println!("{} KUBERNETES_PORT found ... env_logger::init", API_NAMESPACE);
     env_logger::try_init()?;
-    println!(
-        "{} KUBERNETES_PORT found ... env_logger::init finished",
-        API_NAMESPACE
-    );
+    println!("{} KUBERNETES_PORT found ... env_logger::init finished", API_NAMESPACE);
 
     log::info!("{} Controller logging started", API_NAMESPACE);
 
@@ -39,9 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     // Handle instance changes
     tasks.push(tokio::spawn({
         async move {
-            instance_action::do_instance_watch(instance_watch_synchronization)
-                .await
-                .unwrap();
+            instance_action::do_instance_watch(instance_watch_synchronization).await.unwrap();
         }
     }));
     // Watch for node disappearance

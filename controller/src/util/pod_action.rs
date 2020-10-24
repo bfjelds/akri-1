@@ -55,9 +55,7 @@ impl PodActionInfo {
     ///                               | --> <PodStartTime within grace period> ===> PodAction::NoAction
     ///                               | --> <PodStartTime outside grace period> ===> PodAction::RemoveAndAdd
     ///
-    pub fn select_pod_action(
-        &self,
-    ) -> Result<PodAction, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    pub fn select_pod_action(&self) -> Result<PodAction, Box<dyn std::error::Error + Send + Sync + 'static>> {
         log::trace!(
             "select_pod_action phase={:?} action={:?} unknown_node={:?}",
             &self.phase,
@@ -80,26 +78,16 @@ impl PodActionInfo {
         let give_it_more_time: bool;
         if let Some(start_time) = &self.status_start_time {
             // If this pod has a start_time in its status, calculate when the grace period would end
-            log::trace!(
-                "time_choice_for_non_running_pods - checking for time after start_time ({:?})",
-                start_time
-            );
+            log::trace!("time_choice_for_non_running_pods - checking for time after start_time ({:?})", start_time);
             let time_limit = &start_time
                 .0
                 .checked_add_signed(chrono::Duration::minutes(grace_period_in_minutes))
                 .ok_or("checked_add_signed failed")?;
             let now = Utc::now();
-            log::trace!(
-                "time_choice_for_non_running_pods - need more time? now:({:?}) ({:?})",
-                now,
-                *time_limit
-            );
+            log::trace!("time_choice_for_non_running_pods - need more time? now:({:?}) ({:?})", now, *time_limit);
             // If "now" is less than the grace period, the pod deserves more time
             give_it_more_time = now < *time_limit;
-            log::trace!(
-                "time_choice_for_non_running_pods - give_it_more_time: ({:?})",
-                give_it_more_time
-            );
+            log::trace!("time_choice_for_non_running_pods - give_it_more_time: ({:?})", give_it_more_time);
         } else {
             // If the pod has no start_time, give it more time
             log::trace!(
@@ -107,10 +95,7 @@ impl PodActionInfo {
                 &self.trace_node_name
             );
             give_it_more_time = true;
-            log::trace!(
-                "time_choice_for_non_running_pods - give_it_more_time: ({:?})",
-                give_it_more_time
-            );
+            log::trace!("time_choice_for_non_running_pods - give_it_more_time: ({:?})", give_it_more_time);
         }
 
         if give_it_more_time {
@@ -129,9 +114,7 @@ impl PodActionInfo {
     }
 
     /// This will determine what to do with a Running Pod
-    fn choice_for_running_pods(
-        &self,
-    ) -> Result<PodAction, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    fn choice_for_running_pods(&self) -> Result<PodAction, Box<dyn std::error::Error + Send + Sync + 'static>> {
         log::trace!(
             "choice_for_running_pods action={:?} trace_node_name={:?}",
             self.instance_action,
@@ -197,9 +180,7 @@ impl PodActionInfo {
     }
 
     /// This will determine what to do with a Pod running on a known Node
-    fn choice_for_pods_on_known_nodes(
-        &self,
-    ) -> Result<PodAction, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    fn choice_for_pods_on_known_nodes(&self) -> Result<PodAction, Box<dyn std::error::Error + Send + Sync + 'static>> {
         log::trace!(
             "choice_for_pods_on_known_nodes phase={:?} action={:?} trace_node_name={:?}",
             &self.phase,
@@ -254,9 +235,7 @@ impl PodActionInfo {
     }
 
     /// This will determine what to do with a Pod
-    fn choice_for_pod_action(
-        &self,
-    ) -> Result<PodAction, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    fn choice_for_pod_action(&self) -> Result<PodAction, Box<dyn std::error::Error + Send + Sync + 'static>> {
         log::trace!(
             "choice_for_pod_action phase={:?} action={:?} unknown_node={:?} trace_node_name={:?}",
             &self.phase,
@@ -293,33 +272,22 @@ mod controller_tests {
 
         let unexpired_k8s_time = Time(Utc::now());
         let unexpired_start_time = Some(unexpired_k8s_time);
-        let expired_k8s_time = Time(
-            Utc::now()
-                .checked_sub_signed(chrono::Duration::minutes(10))
-                .unwrap(),
-        );
+        let expired_k8s_time = Time(Utc::now().checked_sub_signed(chrono::Duration::minutes(10)).unwrap());
         let expired_start_time = Some(expired_k8s_time);
 
-        [None, unexpired_start_time, expired_start_time]
+        [None, unexpired_start_time, expired_start_time].iter().for_each(|start_time| {
+            [
+                ("Running", PodAction::Remove),
+                ("Pending", PodAction::Remove),
+                ("UnexpectedAdmissionError", PodAction::Remove),
+                ("ContainerCreating", PodAction::Remove),
+                ("PodInitializing", PodAction::Remove),
+                ("blah-blah-unknown", PodAction::Remove),
+            ]
             .iter()
-            .for_each(|start_time| {
-                [
-                    ("Running", PodAction::Remove),
-                    ("Pending", PodAction::Remove),
-                    ("UnexpectedAdmissionError", PodAction::Remove),
-                    ("ContainerCreating", PodAction::Remove),
-                    ("PodInitializing", PodAction::Remove),
-                    ("blah-blah-unknown", PodAction::Remove),
-                ]
-                .iter()
-                .for_each(|map_tuple| {
-                    [
-                        InstanceAction::Add,
-                        InstanceAction::Remove,
-                        InstanceAction::Update,
-                    ]
-                    .iter()
-                    .for_each(|instance_action| {
+            .for_each(|map_tuple| {
+                [InstanceAction::Add, InstanceAction::Remove, InstanceAction::Update].iter().for_each(
+                    |instance_action| {
                         println!(
                             "Testing phase={}, current action={:?} expected action={:?}",
                             map_tuple.0, instance_action, map_tuple.1
@@ -334,9 +302,10 @@ mod controller_tests {
                             trace_node_name: "foo".to_string(),
                         };
                         assert_eq!(map_tuple.1, pod_action_info.select_pod_action().unwrap());
-                    });
-                });
+                    },
+                );
             });
+        });
     }
 
     #[test]
@@ -355,24 +324,22 @@ mod controller_tests {
         ]
         .iter()
         .for_each(|map_tuple| {
-            [InstanceAction::Add, InstanceAction::Update]
-                .iter()
-                .for_each(|instance_action| {
-                    println!(
-                        "Testing phase={}, current action={:?} expected action={:?}",
-                        map_tuple.0, instance_action, map_tuple.1
-                    );
-                    let pod_action_info = PodActionInfo {
-                        pending_grace_time_in_minutes: 1,
-                        ended_grace_time_in_minutes: 1,
-                        phase: map_tuple.0.to_string(),
-                        instance_action: instance_action.clone(),
-                        status_start_time: start_time.clone(),
-                        unknown_node: false,
-                        trace_node_name: "foo".to_string(),
-                    };
-                    assert_eq!(map_tuple.1, pod_action_info.select_pod_action().unwrap());
-                });
+            [InstanceAction::Add, InstanceAction::Update].iter().for_each(|instance_action| {
+                println!(
+                    "Testing phase={}, current action={:?} expected action={:?}",
+                    map_tuple.0, instance_action, map_tuple.1
+                );
+                let pod_action_info = PodActionInfo {
+                    pending_grace_time_in_minutes: 1,
+                    ended_grace_time_in_minutes: 1,
+                    phase: map_tuple.0.to_string(),
+                    instance_action: instance_action.clone(),
+                    status_start_time: start_time.clone(),
+                    unknown_node: false,
+                    trace_node_name: "foo".to_string(),
+                };
+                assert_eq!(map_tuple.1, pod_action_info.select_pod_action().unwrap());
+            });
         });
     }
 
@@ -382,9 +349,7 @@ mod controller_tests {
 
         // for any known pod with EXPIRED start time, we should remove it
         println!("now={:?}", Utc::now());
-        let expired_time = Utc::now()
-            .checked_sub_signed(chrono::Duration::minutes(10))
-            .unwrap();
+        let expired_time = Utc::now().checked_sub_signed(chrono::Duration::minutes(10)).unwrap();
         let k8s_time = Time(expired_time);
         let start_time = Some(k8s_time);
         println!("start_time={:?}", &start_time);
@@ -398,24 +363,22 @@ mod controller_tests {
         ]
         .iter()
         .for_each(|map_tuple| {
-            [InstanceAction::Add, InstanceAction::Update]
-                .iter()
-                .for_each(|instance_action| {
-                    println!(
-                        "Testing phase={}, current action={:?} expected action={:?}",
-                        map_tuple.0, instance_action, map_tuple.1
-                    );
-                    let pod_action_info1 = PodActionInfo {
-                        pending_grace_time_in_minutes: 1,
-                        ended_grace_time_in_minutes: 1,
-                        phase: map_tuple.0.to_string(),
-                        instance_action: instance_action.clone(),
-                        status_start_time: start_time.clone(),
-                        unknown_node: false,
-                        trace_node_name: "foo".to_string(),
-                    };
-                    assert_eq!(map_tuple.1, pod_action_info1.select_pod_action().unwrap());
-                });
+            [InstanceAction::Add, InstanceAction::Update].iter().for_each(|instance_action| {
+                println!(
+                    "Testing phase={}, current action={:?} expected action={:?}",
+                    map_tuple.0, instance_action, map_tuple.1
+                );
+                let pod_action_info1 = PodActionInfo {
+                    pending_grace_time_in_minutes: 1,
+                    ended_grace_time_in_minutes: 1,
+                    phase: map_tuple.0.to_string(),
+                    instance_action: instance_action.clone(),
+                    status_start_time: start_time.clone(),
+                    unknown_node: false,
+                    trace_node_name: "foo".to_string(),
+                };
+                assert_eq!(map_tuple.1, pod_action_info1.select_pod_action().unwrap());
+            });
         });
     }
 
@@ -436,24 +399,22 @@ mod controller_tests {
         ]
         .iter()
         .for_each(|map_tuple| {
-            [InstanceAction::Add, InstanceAction::Update]
-                .iter()
-                .for_each(|instance_action| {
-                    println!(
-                        "Testing phase={}, current action={:?} expected action={:?}",
-                        map_tuple.0, instance_action, map_tuple.1
-                    );
-                    let pod_action_info = PodActionInfo {
-                        pending_grace_time_in_minutes: 1,
-                        ended_grace_time_in_minutes: 1,
-                        phase: map_tuple.0.to_string(),
-                        instance_action: instance_action.clone(),
-                        status_start_time: start_time.clone(),
-                        unknown_node: false,
-                        trace_node_name: "foo".to_string(),
-                    };
-                    assert_eq!(map_tuple.1, pod_action_info.select_pod_action().unwrap());
-                });
+            [InstanceAction::Add, InstanceAction::Update].iter().for_each(|instance_action| {
+                println!(
+                    "Testing phase={}, current action={:?} expected action={:?}",
+                    map_tuple.0, instance_action, map_tuple.1
+                );
+                let pod_action_info = PodActionInfo {
+                    pending_grace_time_in_minutes: 1,
+                    ended_grace_time_in_minutes: 1,
+                    phase: map_tuple.0.to_string(),
+                    instance_action: instance_action.clone(),
+                    status_start_time: start_time.clone(),
+                    unknown_node: false,
+                    trace_node_name: "foo".to_string(),
+                };
+                assert_eq!(map_tuple.1, pod_action_info.select_pod_action().unwrap());
+            });
         });
     }
 
@@ -499,9 +460,7 @@ mod controller_tests {
 
         // for any known pod with EXPIRED start time, we should remove it
         println!("now={:?}", Utc::now());
-        let expired_time = Utc::now()
-            .checked_sub_signed(chrono::Duration::minutes(3))
-            .unwrap();
+        let expired_time = Utc::now().checked_sub_signed(chrono::Duration::minutes(3)).unwrap();
         let k8s_time = Time(expired_time);
         let start_time = Some(k8s_time);
         println!("start_time={:?}", &start_time);
@@ -515,25 +474,23 @@ mod controller_tests {
         ]
         .iter()
         .for_each(|map_tuple| {
-            [InstanceAction::Add, InstanceAction::Update]
-                .iter()
-                .for_each(|instance_action| {
-                    println!(
-                        "Testing phase={}, current action={:?} expected action={:?}",
-                        map_tuple.0, instance_action, map_tuple.1
-                    );
-                    // scenario, we are asking to Add a known pod that is in map_tuple.0 state ... result should be map_tuple.1
-                    let pod_action_info1 = PodActionInfo {
-                        pending_grace_time_in_minutes: 5,
-                        ended_grace_time_in_minutes: 1,
-                        phase: map_tuple.0.to_string(),
-                        instance_action: instance_action.clone(),
-                        status_start_time: start_time.clone(),
-                        unknown_node: false,
-                        trace_node_name: "foo".to_string(),
-                    };
-                    assert_eq!(map_tuple.1, pod_action_info1.select_pod_action().unwrap());
-                });
+            [InstanceAction::Add, InstanceAction::Update].iter().for_each(|instance_action| {
+                println!(
+                    "Testing phase={}, current action={:?} expected action={:?}",
+                    map_tuple.0, instance_action, map_tuple.1
+                );
+                // scenario, we are asking to Add a known pod that is in map_tuple.0 state ... result should be map_tuple.1
+                let pod_action_info1 = PodActionInfo {
+                    pending_grace_time_in_minutes: 5,
+                    ended_grace_time_in_minutes: 1,
+                    phase: map_tuple.0.to_string(),
+                    instance_action: instance_action.clone(),
+                    status_start_time: start_time.clone(),
+                    unknown_node: false,
+                    trace_node_name: "foo".to_string(),
+                };
+                assert_eq!(map_tuple.1, pod_action_info1.select_pod_action().unwrap());
+            });
         });
     }
 }

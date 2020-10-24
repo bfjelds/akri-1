@@ -7,9 +7,7 @@ use super::akri::{
 };
 use async_trait::async_trait;
 use futures::executor::block_on;
-use k8s_openapi::api::core::v1::{
-    NodeSpec, NodeStatus, Pod, PodSpec, PodStatus, Service, ServiceSpec, ServiceStatus,
-};
+use k8s_openapi::api::core::v1::{NodeSpec, NodeStatus, Pod, PodSpec, PodStatus, Service, ServiceSpec, ServiceStatus};
 use kube::{
     api::{Object, ObjectList},
     client::APIClient,
@@ -47,18 +45,12 @@ pub struct OwnershipInfo {
 
 impl OwnershipInfo {
     pub fn new(object_type: OwnershipType, object_name: String, object_uid: String) -> Self {
-        OwnershipInfo {
-            object_type,
-            object_uid,
-            object_name,
-        }
+        OwnershipInfo { object_type, object_uid, object_name }
     }
 
     pub fn get_api_version(&self) -> String {
         match self.object_type {
-            OwnershipType::Instance | OwnershipType::Configuration => {
-                format!("{}/{}", API_NAMESPACE, API_VERSION)
-            }
+            OwnershipType::Instance | OwnershipType::Configuration => format!("{}/{}", API_NAMESPACE, API_VERSION),
             OwnershipType::Pod | OwnershipType::Service => "core/v1".to_string(),
         }
     }
@@ -117,17 +109,11 @@ pub trait KubeInterface: Send + Sync {
     async fn find_pods_with_label(
         &self,
         selector: &str,
-    ) -> Result<
-        ObjectList<Object<PodSpec, PodStatus>>,
-        Box<dyn std::error::Error + Send + Sync + 'static>,
-    >;
+    ) -> Result<ObjectList<Object<PodSpec, PodStatus>>, Box<dyn std::error::Error + Send + Sync + 'static>>;
     async fn find_pods_with_field(
         &self,
         selector: &str,
-    ) -> Result<
-        ObjectList<Object<PodSpec, PodStatus>>,
-        Box<dyn std::error::Error + Send + Sync + 'static>,
-    >;
+    ) -> Result<ObjectList<Object<PodSpec, PodStatus>>, Box<dyn std::error::Error + Send + Sync + 'static>>;
     async fn create_pod(
         &self,
         pod_to_create: &Pod,
@@ -142,10 +128,7 @@ pub trait KubeInterface: Send + Sync {
     async fn find_services(
         &self,
         selector: &str,
-    ) -> Result<
-        ObjectList<Object<ServiceSpec, ServiceStatus>>,
-        Box<dyn std::error::Error + Send + Sync + 'static>,
-    >;
+    ) -> Result<ObjectList<Object<ServiceSpec, ServiceStatus>>, Box<dyn std::error::Error + Send + Sync + 'static>>;
     async fn create_service(
         &self,
         svc_to_create: &Service,
@@ -177,9 +160,7 @@ pub trait KubeInterface: Send + Sync {
         name: &str,
         namespace: &str,
     ) -> Result<KubeAkriInstance, Box<dyn std::error::Error + Send + Sync + 'static>>;
-    async fn get_instances(
-        &self,
-    ) -> Result<KubeAkriInstanceList, Box<dyn std::error::Error + Send + Sync + 'static>>;
+    async fn get_instances(&self) -> Result<KubeAkriInstanceList, Box<dyn std::error::Error + Send + Sync + 'static>>;
     async fn create_instance(
         &self,
         instance_to_create: &Instance,
@@ -253,8 +234,7 @@ impl KubeInterface for KubeImpl {
     async fn find_node(
         &self,
         name: &str,
-    ) -> Result<Object<NodeSpec, NodeStatus>, Box<dyn std::error::Error + Send + Sync + 'static>>
-    {
+    ) -> Result<Object<NodeSpec, NodeStatus>, Box<dyn std::error::Error + Send + Sync + 'static>> {
         node::find_node(name, self.get_kube_client()).await
     }
 
@@ -275,10 +255,7 @@ impl KubeInterface for KubeImpl {
     async fn find_pods_with_label(
         &self,
         selector: &str,
-    ) -> Result<
-        ObjectList<Object<PodSpec, PodStatus>>,
-        Box<dyn std::error::Error + Send + Sync + 'static>,
-    > {
+    ) -> Result<ObjectList<Object<PodSpec, PodStatus>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
         pod::find_pods_with_selector(Some(selector.to_string()), None, self.get_kube_client()).await
     }
     /// Get Kuberenetes pods with specified field selector
@@ -298,10 +275,7 @@ impl KubeInterface for KubeImpl {
     async fn find_pods_with_field(
         &self,
         selector: &str,
-    ) -> Result<
-        ObjectList<Object<PodSpec, PodStatus>>,
-        Box<dyn std::error::Error + Send + Sync + 'static>,
-    > {
+    ) -> Result<ObjectList<Object<PodSpec, PodStatus>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
         pod::find_pods_with_selector(None, Some(selector.to_string()), self.get_kube_client()).await
     }
     /// Create Kuberenetes pod
@@ -365,10 +339,8 @@ impl KubeInterface for KubeImpl {
     async fn find_services(
         &self,
         selector: &str,
-    ) -> Result<
-        ObjectList<Object<ServiceSpec, ServiceStatus>>,
-        Box<dyn std::error::Error + Send + Sync + 'static>,
-    > {
+    ) -> Result<ObjectList<Object<ServiceSpec, ServiceStatus>>, Box<dyn std::error::Error + Send + Sync + 'static>>
+    {
         service::find_services_with_selector(selector, self.get_kube_client()).await
     }
     /// Create Kubernetes service
@@ -522,9 +494,7 @@ impl KubeInterface for KubeImpl {
     /// let instances = kube.get_instances().await.unwrap();
     /// # }
     /// ```
-    async fn get_instances(
-        &self,
-    ) -> Result<KubeAkriInstanceList, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    async fn get_instances(&self) -> Result<KubeAkriInstanceList, Box<dyn std::error::Error + Send + Sync + 'static>> {
         instance::get_instances(&self.get_kube_client()).await
     }
     /// Create Akri Instance
@@ -629,8 +599,7 @@ impl KubeInterface for KubeImpl {
         name: &str,
         namespace: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-        instance::update_instance(instance_to_update, name, namespace, &self.get_kube_client())
-            .await
+        instance::update_instance(instance_to_update, name, namespace, &self.get_kube_client()).await
     }
 }
 
@@ -695,27 +664,22 @@ pub mod test_kube {
         async fn find_node(
             &self,
             name: &str,
-        ) -> Result<Object<NodeSpec, NodeStatus>, Box<dyn std::error::Error + Send + Sync + 'static>>
-        {
+        ) -> Result<Object<NodeSpec, NodeStatus>, Box<dyn std::error::Error + Send + Sync + 'static>> {
             self.find_node(name)
         }
 
         async fn find_pods_with_label(
             &self,
             selector: &str,
-        ) -> Result<
-            ObjectList<Object<PodSpec, PodStatus>>,
-            Box<dyn std::error::Error + Send + Sync + 'static>,
-        > {
+        ) -> Result<ObjectList<Object<PodSpec, PodStatus>>, Box<dyn std::error::Error + Send + Sync + 'static>>
+        {
             self.find_pods_with_label(selector)
         }
         async fn find_pods_with_field(
             &self,
             selector: &str,
-        ) -> Result<
-            ObjectList<Object<PodSpec, PodStatus>>,
-            Box<dyn std::error::Error + Send + Sync + 'static>,
-        > {
+        ) -> Result<ObjectList<Object<PodSpec, PodStatus>>, Box<dyn std::error::Error + Send + Sync + 'static>>
+        {
             self.find_pods_with_field(selector)
         }
         async fn create_pod(
@@ -736,10 +700,8 @@ pub mod test_kube {
         async fn find_services(
             &self,
             selector: &str,
-        ) -> Result<
-            ObjectList<Object<ServiceSpec, ServiceStatus>>,
-            Box<dyn std::error::Error + Send + Sync + 'static>,
-        > {
+        ) -> Result<ObjectList<Object<ServiceSpec, ServiceStatus>>, Box<dyn std::error::Error + Send + Sync + 'static>>
+        {
             self.find_services(selector)
         }
         async fn create_service(
@@ -774,8 +736,7 @@ pub mod test_kube {
         }
         async fn get_configurations(
             &self,
-        ) -> Result<KubeAkriConfigList, Box<dyn std::error::Error + Send + Sync + 'static>>
-        {
+        ) -> Result<KubeAkriConfigList, Box<dyn std::error::Error + Send + Sync + 'static>> {
             self.get_configurations()
         }
 
@@ -788,8 +749,7 @@ pub mod test_kube {
         }
         async fn get_instances(
             &self,
-        ) -> Result<KubeAkriInstanceList, Box<dyn std::error::Error + Send + Sync + 'static>>
-        {
+        ) -> Result<KubeAkriInstanceList, Box<dyn std::error::Error + Send + Sync + 'static>> {
             self.get_instances()
         }
         async fn create_instance(
@@ -800,13 +760,7 @@ pub mod test_kube {
             owner_config_name: &str,
             owner_config_uid: &str,
         ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-            self.create_instance(
-                instance_to_create,
-                name,
-                namespace,
-                owner_config_name,
-                owner_config_uid,
-            )
+            self.create_instance(instance_to_create, name, namespace, owner_config_name, owner_config_uid)
         }
         async fn delete_instance(
             &self,
@@ -834,15 +788,8 @@ pub mod test_ownership {
     async fn test_ownership_from_config() {
         let name = "asdf";
         let uid = "zxcv";
-        let ownership = OwnershipInfo::new(
-            OwnershipType::Configuration,
-            name.to_string(),
-            uid.to_string(),
-        );
-        assert_eq!(
-            format!("{}/{}", API_NAMESPACE, API_VERSION),
-            ownership.get_api_version()
-        );
+        let ownership = OwnershipInfo::new(OwnershipType::Configuration, name.to_string(), uid.to_string());
+        assert_eq!(format!("{}/{}", API_NAMESPACE, API_VERSION), ownership.get_api_version());
         assert_eq!("Configuration", &ownership.get_kind());
         assert_eq!(true, ownership.get_controller());
         assert_eq!(true, ownership.get_block_owner_deletion());
@@ -853,12 +800,8 @@ pub mod test_ownership {
     async fn test_ownership_from_instance() {
         let name = "asdf";
         let uid = "zxcv";
-        let ownership =
-            OwnershipInfo::new(OwnershipType::Instance, name.to_string(), uid.to_string());
-        assert_eq!(
-            format!("{}/{}", API_NAMESPACE, API_VERSION),
-            ownership.get_api_version()
-        );
+        let ownership = OwnershipInfo::new(OwnershipType::Instance, name.to_string(), uid.to_string());
+        assert_eq!(format!("{}/{}", API_NAMESPACE, API_VERSION), ownership.get_api_version());
         assert_eq!("Instance", &ownership.get_kind());
         assert_eq!(true, ownership.get_controller());
         assert_eq!(true, ownership.get_block_owner_deletion());
@@ -881,8 +824,7 @@ pub mod test_ownership {
     async fn test_ownership_from_service() {
         let name = "asdf";
         let uid = "zxcv";
-        let ownership =
-            OwnershipInfo::new(OwnershipType::Service, name.to_string(), uid.to_string());
+        let ownership = OwnershipInfo::new(OwnershipType::Service, name.to_string(), uid.to_string());
         assert_eq!("core/v1", ownership.get_api_version());
         assert_eq!("Service", &ownership.get_kind());
         assert_eq!(true, ownership.get_controller());

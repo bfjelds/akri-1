@@ -28,16 +28,9 @@ pub mod device_info {
     /// An implementation of an onvif query can retrieve the camera's ip/mac address, scopes, profiles and streaming uri.
     #[async_trait]
     pub trait OnvifQuery {
-        async fn get_device_ip_and_mac_address(
-            &self,
-            service_url: &str,
-        ) -> Result<(String, String), failure::Error>;
+        async fn get_device_ip_and_mac_address(&self, service_url: &str) -> Result<(String, String), failure::Error>;
         async fn get_device_scopes(&self, url: &str) -> Result<Vec<String>, failure::Error>;
-        async fn get_device_service_uri(
-            &self,
-            url: &str,
-            service: &str,
-        ) -> Result<String, failure::Error>;
+        async fn get_device_service_uri(&self, url: &str, service: &str) -> Result<String, failure::Error>;
         async fn get_device_profiles(&self, url: &str) -> Result<Vec<String>, failure::Error>;
         async fn get_device_profile_streaming_uri(
             &self,
@@ -51,10 +44,7 @@ pub mod device_info {
     #[async_trait]
     impl OnvifQuery for OnvifQueryImpl {
         /// Gets the ip and mac address of a given ONVIF camera
-        async fn get_device_ip_and_mac_address(
-            &self,
-            service_url: &str,
-        ) -> Result<(String, String), failure::Error> {
+        async fn get_device_ip_and_mac_address(&self, service_url: &str) -> Result<(String, String), failure::Error> {
             let http = HttpRequest {};
             inner_get_device_ip_and_mac_address(service_url, &http).await
         }
@@ -66,11 +56,7 @@ pub mod device_info {
         }
 
         /// Gets specific service, like media, from a given ONVIF camera
-        async fn get_device_service_uri(
-            &self,
-            url: &str,
-            service: &str,
-        ) -> Result<String, failure::Error> {
+        async fn get_device_service_uri(&self, url: &str, service: &str) -> Result<String, failure::Error> {
             let http = HttpRequest {};
             inner_get_device_service_uri(url, service, &http).await
         }
@@ -97,12 +83,7 @@ pub mod device_info {
     /// An implementation of http can send an HTTP::Post.
     #[async_trait]
     trait Http {
-        async fn post(
-            &self,
-            url: &str,
-            mime_action: &str,
-            msg: &str,
-        ) -> Result<Package, failure::Error>;
+        async fn post(&self, url: &str, mime_action: &str, msg: &str) -> Result<Package, failure::Error>;
     }
 
     struct HttpRequest {}
@@ -114,10 +95,7 @@ pub mod device_info {
                 Ok(xml_as_tree) => xml_as_tree,
                 Err(e) => return Err(Error::new(ErrorKind::InvalidData, e).into()),
             };
-            trace!(
-                "handle_request_body - response as xmltree: {:?}",
-                xml_as_tree
-            );
+            trace!("handle_request_body - response as xmltree: {:?}", xml_as_tree);
             Ok(xml_as_tree)
         }
     }
@@ -125,27 +103,12 @@ pub mod device_info {
     #[async_trait]
     impl Http for HttpRequest {
         /// This sends an HTTP::Post and converts the response body into an sxd_document::Package
-        async fn post(
-            &self,
-            url: &str,
-            mime_action: &str,
-            msg: &str,
-        ) -> Result<Package, failure::Error> {
-            trace!(
-                "post - url:{}, mime_action:{}, msg:{}",
-                &url,
-                &mime_action,
-                &msg
-            );
+        async fn post(&self, url: &str, mime_action: &str, msg: &str) -> Result<Package, failure::Error> {
+            trace!("post - url:{}, mime_action:{}, msg:{}", &url, &mime_action, &msg);
 
-            let full_mime = format!(
-                "{}; {}; {};",
-                "application/soap+xml", "charset=utf-8", mime_action
-            );
-            let request = Request::post(url)
-                .header("CONTENT-TYPE", full_mime)
-                .body(msg.to_string().into())
-                .expect("infallible");
+            let full_mime = format!("{}; {}; {};", "application/soap+xml", "charset=utf-8", mime_action);
+            let request =
+                Request::post(url).header("CONTENT-TYPE", full_mime).body(msg.to_string().into()).expect("infallible");
             let response = hyper_async::Client::new().request(request).await.unwrap();
             if response.status() != 200 {
                 return Err(failure::format_err!("failure"));
@@ -162,10 +125,7 @@ pub mod device_info {
             match HttpRequest::handle_request_body(&response_body_str) {
                 Ok(dom) => Ok(dom),
                 Err(e) => {
-                    trace!(
-                        "post - failure to handle response: {:?}",
-                        &response_body_str
-                    );
+                    trace!("post - failure to handle response: {:?}", &response_body_str);
                     Err(Error::new(ErrorKind::InvalidData, e).into())
                 }
             }
@@ -191,12 +151,7 @@ pub mod device_info {
             .await
         {
             Ok(xml) => xml,
-            Err(e) => {
-                return Err(failure::format_err!(
-                    "failed to get network interfaces from device: {:?}",
-                    e
-                ))
-            }
+            Err(e) => return Err(failure::format_err!("failed to get network interfaces from device: {:?}", e)),
         };
         let network_interfaces_doc = network_interfaces_xml.as_document();
         let ip_address = match sxd_xpath::evaluate_xpath(
@@ -212,10 +167,7 @@ pub mod device_info {
                 Ok(Value::Number(_)) => return Err(failure::format_err!("Failed to get ONVIF ip address: unexpected type")),
                 Err(e) => return Err(failure::format_err!("Failed to get ONVIF ip address: {}", e))
             };
-        trace!(
-            "inner_get_device_ip_and_mac_address - network interfaces (ip address): {:?}",
-            ip_address
-        );
+        trace!("inner_get_device_ip_and_mac_address - network interfaces (ip address): {:?}", ip_address);
         let mac_address = match sxd_xpath::evaluate_xpath(
                 &network_interfaces_doc,
                 "//*[local-name()='GetNetworkInterfacesResponse']/*[local-name()='NetworkInterfaces']/*[local-name()='Info']/*[local-name()='HwAddress']/text()"
@@ -229,48 +181,28 @@ pub mod device_info {
                 Ok(Value::Number(_)) => return Err(failure::format_err!("Failed to get ONVIF mac address: unexpected type")),
                 Err(e) => return Err(failure::format_err!("Failed to get ONVIF mac address: {}", e))
             };
-        trace!(
-            "inner_get_device_ip_and_mac_address - network interfaces (mac address): {:?}",
-            mac_address
-        );
+        trace!("inner_get_device_ip_and_mac_address - network interfaces (mac address): {:?}", mac_address);
         Ok((ip_address, mac_address))
     }
 
     /// Gets the list of scopes for a given ONVIF camera
-    async fn inner_get_device_scopes(
-        url: &str,
-        http: &impl Http,
-    ) -> Result<Vec<String>, failure::Error> {
-        let scopes_xml = match http
-            .post(
-                &url,
-                &get_action(DEVICE_WSDL, "GetScopes"),
-                &GET_SCOPES_TEMPLATE.to_string(),
-            )
-            .await
-        {
-            Ok(xml) => xml,
-            Err(e) => {
-                return Err(failure::format_err!(
-                    "failed to get scopes from device: {:?}",
-                    e
-                ))
-            }
-        };
+    async fn inner_get_device_scopes(url: &str, http: &impl Http) -> Result<Vec<String>, failure::Error> {
+        let scopes_xml =
+            match http.post(&url, &get_action(DEVICE_WSDL, "GetScopes"), &GET_SCOPES_TEMPLATE.to_string()).await {
+                Ok(xml) => xml,
+                Err(e) => return Err(failure::format_err!("failed to get scopes from device: {:?}", e)),
+            };
         let scopes_doc = scopes_xml.as_document();
         let scopes_query = sxd_xpath::evaluate_xpath(
             &scopes_doc,
-            "//*[local-name()='GetScopesResponse']/*[local-name()='Scopes']/*[local-name()='ScopeItem']/text()"
+            "//*[local-name()='GetScopesResponse']/*[local-name()='Scopes']/*[local-name()='ScopeItem']/text()",
         );
         let scopes = match scopes_query {
-            Ok(Value::Nodeset(scope_items)) => scope_items
-                .iter()
-                .map(|scope_item| scope_item.string_value())
-                .collect::<Vec<String>>(),
+            Ok(Value::Nodeset(scope_items)) => {
+                scope_items.iter().map(|scope_item| scope_item.string_value()).collect::<Vec<String>>()
+            }
             Ok(Value::Boolean(_)) | Ok(Value::Number(_)) | Ok(Value::String(_)) => {
-                return Err(failure::format_err!(
-                    "Failed to get ONVIF scopes: unexpected type"
-                ))
+                return Err(failure::format_err!("Failed to get ONVIF scopes: unexpected type"))
             }
             Err(e) => return Err(failure::format_err!("Failed to get ONVIF scopes: {}", e)),
         };
@@ -300,42 +232,22 @@ pub mod device_info {
         service: &str,
         http: &impl Http,
     ) -> Result<String, failure::Error> {
-        let services_xml = match http
-            .post(
-                &url,
-                &get_action(DEVICE_WSDL, "GetServices"),
-                &GET_SERVICES_TEMPLATE.to_string(),
-            )
-            .await
-        {
-            Ok(xml) => xml,
-            Err(e) => {
-                return Err(failure::format_err!(
-                    "failed to get services from device: {:?}",
-                    e
-                ))
-            }
-        };
+        let services_xml =
+            match http.post(&url, &get_action(DEVICE_WSDL, "GetServices"), &GET_SERVICES_TEMPLATE.to_string()).await {
+                Ok(xml) => xml,
+                Err(e) => return Err(failure::format_err!("failed to get services from device: {:?}", e)),
+            };
         let services_doc = services_xml.as_document();
         let service_xpath_query = format!(
             "//*[local-name()='GetServicesResponse']/*[local-name()='Service' and *[local-name()='Namespace']/text() ='{}']/*[local-name()='XAddr']/text()",
             service
         );
-        let requested_device_service_uri =
-            match sxd_xpath::evaluate_xpath(&services_doc, service_xpath_query.as_str()) {
-                Ok(uri) => uri.string(),
-                Err(e) => {
-                    return Err(failure::format_err!(
-                        "failed to get servuce uri from resoinse: {:?}",
-                        e
-                    ))
-                }
-            };
-        trace!(
-            "inner_get_device_service_uri - service ({}) uris: {:?}",
-            service,
-            requested_device_service_uri
-        );
+        let requested_device_service_uri = match sxd_xpath::evaluate_xpath(&services_doc, service_xpath_query.as_str())
+        {
+            Ok(uri) => uri.string(),
+            Err(e) => return Err(failure::format_err!("failed to get servuce uri from resoinse: {:?}", e)),
+        };
+        trace!("inner_get_device_service_uri - service ({}) uris: {:?}", service, requested_device_service_uri);
         Ok(requested_device_service_uri)
     }
 
@@ -348,20 +260,12 @@ pub mod device_info {
         </soap:Envelope>"#;
 
     /// Gets list of media profiles for a given ONVIF camera
-    async fn inner_get_device_profiles(
-        url: &str,
-        http: &impl Http,
-    ) -> Result<Vec<String>, failure::Error> {
+    async fn inner_get_device_profiles(url: &str, http: &impl Http) -> Result<Vec<String>, failure::Error> {
         let action = get_action(MEDIA_WSDL, "GetProfiles");
         let message = GET_PROFILES_TEMPLATE.to_string();
         let profiles_xml = match http.post(&url, &action, &message).await {
             Ok(xml) => xml,
-            Err(e) => {
-                return Err(failure::format_err!(
-                    "failed to get profiles from device: {:?}",
-                    e
-                ))
-            }
+            Err(e) => return Err(failure::format_err!("failed to get profiles from device: {:?}", e)),
         };
         let profiles_doc = profiles_xml.as_document();
         let profiles_query = sxd_xpath::evaluate_xpath(
@@ -369,14 +273,11 @@ pub mod device_info {
             "//*[local-name()='GetProfilesResponse']/*[local-name()='Profiles']/@token",
         );
         let profiles = match profiles_query {
-            Ok(Value::Nodeset(profiles_items)) => profiles_items
-                .iter()
-                .map(|profile_item| profile_item.string_value())
-                .collect::<Vec<String>>(),
+            Ok(Value::Nodeset(profiles_items)) => {
+                profiles_items.iter().map(|profile_item| profile_item.string_value()).collect::<Vec<String>>()
+            }
             Ok(Value::Boolean(_)) | Ok(Value::Number(_)) | Ok(Value::String(_)) => {
-                return Err(failure::format_err!(
-                    "Failed to get ONVIF profiles: unexpected type"
-                ))
+                return Err(failure::format_err!("Failed to get ONVIF profiles: unexpected type"))
             }
             Err(e) => return Err(failure::format_err!("Failed to get ONVIF profiles: {}", e)),
         };
@@ -391,31 +292,18 @@ pub mod device_info {
         http: &impl Http,
     ) -> Result<String, failure::Error> {
         let stream_soap = get_stream_uri_message(&profile_token);
-        let stream_uri_xml = match http
-            .post(&url, &get_action(MEDIA_WSDL, "GetStreamUri"), &stream_soap)
-            .await
-        {
+        let stream_uri_xml = match http.post(&url, &get_action(MEDIA_WSDL, "GetStreamUri"), &stream_soap).await {
             Ok(xml) => xml,
-            Err(e) => {
-                return Err(failure::format_err!(
-                    "failed to get streaming uri from device: {:?}",
-                    e
-                ))
-            }
+            Err(e) => return Err(failure::format_err!("failed to get streaming uri from device: {:?}", e)),
         };
         let stream_uri_doc = stream_uri_xml.as_document();
         let stream_uri = match sxd_xpath::evaluate_xpath(
             &stream_uri_doc,
-            "//*[local-name()='GetStreamUriResponse']/*[local-name()='MediaUri']/*[local-name()='Uri']/text()"
-            ) {
-                Ok(stream) => stream.string(),
-                Err(e) => {
-                    return Err(failure::format_err!(
-                        "failed to get servuce uri from resoinse: {:?}",
-                        e
-                    ))
-                }
-            };
+            "//*[local-name()='GetStreamUriResponse']/*[local-name()='MediaUri']/*[local-name()='Uri']/text()",
+        ) {
+            Ok(stream) => stream.string(),
+            Err(e) => return Err(failure::format_err!("failed to get servuce uri from resoinse: {:?}", e)),
+        };
         Ok(stream_uri)
     }
 
@@ -484,12 +372,7 @@ pub mod device_info {
 
         #[async_trait]
         impl Http for MockHttpImpl {
-            async fn post(
-                &self,
-                url: &str,
-                mime_action: &str,
-                msg: &str,
-            ) -> Result<Package, failure::Error> {
+            async fn post(&self, url: &str, mime_action: &str, msg: &str) -> Result<Package, failure::Error> {
                 self.post(url, mime_action, msg)
             }
         }
@@ -529,11 +412,7 @@ pub mod device_info {
             async fn get_device_scopes(&self, url: &str) -> Result<Vec<String>, failure::Error> {
                 self.get_device_scopes(url)
             }
-            async fn get_device_service_uri(
-                &self,
-                url: &str,
-                service: &str,
-            ) -> Result<String, failure::Error> {
+            async fn get_device_service_uri(&self, url: &str, service: &str) -> Result<String, failure::Error> {
                 self.get_device_service_uri(url, service)
             }
             async fn get_device_profiles(&self, url: &str) -> Result<Vec<String>, failure::Error> {
@@ -554,13 +433,7 @@ pub mod device_info {
         use super::test_onvif::*;
         use super::*;
 
-        fn configure_post(
-            mock: &mut MockHttpImpl,
-            url: &str,
-            mime: &str,
-            msg: &str,
-            output_xml: &str,
-        ) {
+        fn configure_post(mock: &mut MockHttpImpl, url: &str, mime: &str, msg: &str, output_xml: &str) {
             let inner_url = url.to_string();
             let inner_mime = mime.to_string();
             let inner_msg = msg.to_string();
@@ -592,12 +465,9 @@ pub mod device_info {
             );
             assert_eq!(
                 ("192.168.1.36".to_string(), "00:12:41:5c:a1:a5".to_string()),
-                inner_get_device_ip_and_mac_address(
-                    &"test_inner_get_device_ip_and_mac_address-url".to_string(),
-                    &mock
-                )
-                .await
-                .unwrap()
+                inner_get_device_ip_and_mac_address(&"test_inner_get_device_ip_and_mac_address-url".to_string(), &mock)
+                    .await
+                    .unwrap()
             );
         }
 
@@ -615,16 +485,10 @@ pub mod device_info {
                 &response.to_string(),
             );
             assert_eq!(
-                (
-                    "10.137.185.208".to_string(),
-                    "00:FC:DA:B1:69:CC".to_string()
-                ),
-                inner_get_device_ip_and_mac_address(
-                    &"test_inner_get_device_ip_and_mac_address-url".to_string(),
-                    &mock
-                )
-                .await
-                .unwrap()
+                ("10.137.185.208".to_string(), "00:FC:DA:B1:69:CC".to_string()),
+                inner_get_device_ip_and_mac_address(&"test_inner_get_device_ip_and_mac_address-url".to_string(), &mock)
+                    .await
+                    .unwrap()
             );
         }
 
@@ -655,9 +519,7 @@ pub mod device_info {
             expected.sort();
 
             let mut actual =
-                inner_get_device_scopes(&"test_inner_get_device_scopes-url".to_string(), &mock)
-                    .await
-                    .unwrap();
+                inner_get_device_scopes(&"test_inner_get_device_scopes-url".to_string(), &mock).await.unwrap();
             actual.sort();
 
             assert_eq!(expected, actual);
@@ -705,14 +567,9 @@ pub mod device_info {
                 );
             }
             let mut actual_profiles =
-                inner_get_device_profiles(&"test_inner_get_device_profiles-url".to_string(), &mock)
-                    .await
-                    .unwrap();
+                inner_get_device_profiles(&"test_inner_get_device_profiles-url".to_string(), &mock).await.unwrap();
             actual_profiles.sort();
-            assert_eq!(
-                vec!["000".to_string(), "001".to_string(), "002".to_string()],
-                actual_profiles,
-            );
+            assert_eq!(vec!["000".to_string(), "001".to_string(), "002".to_string()], actual_profiles,);
         }
 
         #[tokio::test]
@@ -722,7 +579,7 @@ pub mod device_info {
             let expected_result = vec![
                 "rtsp://192.168.0.36:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream".to_string(),
                 "rtsp://192.168.1.36:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream".to_string(),
-                "rtsp://192.168.2.36:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream".to_string()
+                "rtsp://192.168.2.36:554/user=admin_password=tlJwpbo6_channel=1_stream=0.sdp?real_stream".to_string(),
             ];
 
             for (i, expected_uri) in expected_result.iter().enumerate().take(3) {

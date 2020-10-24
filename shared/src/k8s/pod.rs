@@ -1,11 +1,11 @@
 use super::{
-    super::akri::API_NAMESPACE, OwnershipInfo, ERROR_CONFLICT, ERROR_NOT_FOUND,
-    NODE_SELECTOR_OP_IN, OBJECT_NAME_FIELD, RESOURCE_REQUIREMENTS_KEY,
+    super::akri::API_NAMESPACE, OwnershipInfo, ERROR_CONFLICT, ERROR_NOT_FOUND, NODE_SELECTOR_OP_IN, OBJECT_NAME_FIELD,
+    RESOURCE_REQUIREMENTS_KEY,
 };
 use either::Either;
 use k8s_openapi::api::core::v1::{
-    Affinity, NodeAffinity, NodeSelector, NodeSelectorRequirement, NodeSelectorTerm, Pod, PodSpec,
-    PodStatus, ResourceRequirements,
+    Affinity, NodeAffinity, NodeSelector, NodeSelectorRequirement, NodeSelectorTerm, Pod, PodSpec, PodStatus,
+    ResourceRequirements,
 };
 use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{ObjectMeta, OwnerReference};
@@ -59,21 +59,10 @@ pub async fn find_pods_with_selector(
     label_selector: Option<String>,
     field_selector: Option<String>,
     kube_client: APIClient,
-) -> Result<
-    ObjectList<Object<PodSpec, PodStatus>>,
-    Box<dyn std::error::Error + Send + Sync + 'static>,
-> {
-    trace!(
-        "find_pods_with_selector with label_selector={:?} field_selector={:?}",
-        &label_selector,
-        &field_selector
-    );
+) -> Result<ObjectList<Object<PodSpec, PodStatus>>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    trace!("find_pods_with_selector with label_selector={:?} field_selector={:?}", &label_selector, &field_selector);
     let pods = Api::v1Pod(kube_client);
-    let pod_list_params = ListParams {
-        label_selector,
-        field_selector,
-        ..Default::default()
-    };
+    let pod_list_params = ListParams { label_selector, field_selector, ..Default::default() };
     trace!("find_pods_with_selector PRE pods.list(...).await?");
     let result = pods.list(&pod_list_params).await;
     trace!("find_pods_with_selector return");
@@ -104,10 +93,7 @@ pub fn create_pod_app_name(
         // If the device capability is shared, the instance name will not contain any
         // node-specific content.  To ensure uniqueness of the Pod we are creating,
         // prepend the node name here.
-        format!(
-            "{}-{}-{}",
-            node_to_run_pod_on, normalized_instance_name, app_name_suffix
-        )
+        format!("{}-{}-{}", node_to_run_pod_on, normalized_instance_name, app_name_suffix)
     } else {
         // If the device capability is NOT shared, the instance name will contain
         // node-specific content, which guarntees uniqueness.
@@ -158,27 +144,13 @@ pub fn create_new_pod_from_spec(
 ) -> Result<Pod, Box<dyn std::error::Error + Send + Sync + 'static>> {
     trace!("create_new_pod_from_spec enter");
 
-    let app_name = create_pod_app_name(
-        instance_name,
-        node_to_run_pod_on,
-        capability_is_shared,
-        &"pod".to_string(),
-    );
+    let app_name = create_pod_app_name(instance_name, node_to_run_pod_on, capability_is_shared, &"pod".to_string());
     let mut labels: BTreeMap<String, String> = BTreeMap::new();
     labels.insert(APP_LABEL_ID.to_string(), app_name.clone());
     labels.insert(CONTROLLER_LABEL_ID.to_string(), API_NAMESPACE.to_string());
-    labels.insert(
-        AKRI_CONFIGURATION_LABEL_NAME.to_string(),
-        configuration_name.to_string(),
-    );
-    labels.insert(
-        AKRI_INSTANCE_LABEL_NAME.to_string(),
-        instance_name.to_string(),
-    );
-    labels.insert(
-        AKRI_TARGET_NODE_LABEL_NAME.to_string(),
-        node_to_run_pod_on.to_string(),
-    );
+    labels.insert(AKRI_CONFIGURATION_LABEL_NAME.to_string(), configuration_name.to_string());
+    labels.insert(AKRI_INSTANCE_LABEL_NAME.to_string(), instance_name.to_string());
+    labels.insert(AKRI_TARGET_NODE_LABEL_NAME.to_string(), node_to_run_pod_on.to_string());
 
     let owner_references: Vec<OwnerReference> = vec![OwnerReference {
         api_version: ownership.get_api_version(),
@@ -199,10 +171,7 @@ pub fn create_new_pod_from_spec(
             if let Some(limits) = resources.limits.as_ref() {
                 let mut modified_limits = limits.clone();
                 if modified_limits.contains_key(RESOURCE_REQUIREMENTS_KEY) {
-                    let placeholder_value = modified_limits
-                        .get(RESOURCE_REQUIREMENTS_KEY)
-                        .unwrap()
-                        .clone();
+                    let placeholder_value = modified_limits.get(RESOURCE_REQUIREMENTS_KEY).unwrap().clone();
                     modified_limits.insert(resource_limit_name.to_string(), placeholder_value);
                     modified_limits.remove(RESOURCE_REQUIREMENTS_KEY);
                 }
@@ -212,10 +181,7 @@ pub fn create_new_pod_from_spec(
             if let Some(requests) = resources.requests.as_ref() {
                 let mut modified_requests = requests.clone();
                 if modified_requests.contains_key(RESOURCE_REQUIREMENTS_KEY) {
-                    let placeholder_value = modified_requests
-                        .get(RESOURCE_REQUIREMENTS_KEY)
-                        .unwrap()
-                        .clone();
+                    let placeholder_value = modified_requests.get(RESOURCE_REQUIREMENTS_KEY).unwrap().clone();
                     modified_requests.insert(resource_limit_name.to_string(), placeholder_value);
                     modified_requests.remove(RESOURCE_REQUIREMENTS_KEY);
                 }
@@ -224,10 +190,7 @@ pub fn create_new_pod_from_spec(
             }
         };
 
-        container.resources = Some(ResourceRequirements {
-            limits: incoming_limits,
-            requests: incoming_requests,
-        });
+        container.resources = Some(ResourceRequirements { limits: incoming_limits, requests: incoming_requests });
     }
 
     // Ensure that the modified PodSpec has the required Affinity settings
@@ -235,13 +198,9 @@ pub fn create_new_pod_from_spec(
         .affinity
         .get_or_insert(Affinity::default())
         .node_affinity
-        .get_or_insert(NodeAffinity {
-            ..Default::default()
-        })
+        .get_or_insert(NodeAffinity { ..Default::default() })
         .required_during_scheduling_ignored_during_execution
-        .get_or_insert(NodeSelector {
-            node_selector_terms: vec![],
-        })
+        .get_or_insert(NodeSelector { node_selector_terms: vec![] })
         .node_selector_terms
         .push(NodeSelectorTerm {
             match_fields: Some(vec![NodeSelectorRequirement {
@@ -282,59 +241,29 @@ mod broker_podspec_tests {
 
         assert_eq!(
             "node-instance-name-suffix",
-            create_pod_app_name(
-                &"instance.name".to_string(),
-                &"node".to_string(),
-                true,
-                &"suffix".to_string()
-            )
+            create_pod_app_name(&"instance.name".to_string(), &"node".to_string(), true, &"suffix".to_string())
         );
         assert_eq!(
             "instance-name-suffix",
-            create_pod_app_name(
-                &"instance.name".to_string(),
-                &"node".to_string(),
-                false,
-                &"suffix".to_string()
-            )
+            create_pod_app_name(&"instance.name".to_string(), &"node".to_string(), false, &"suffix".to_string())
         );
 
         assert_eq!(
             "node-instance-name-suffix",
-            create_pod_app_name(
-                &"instance-name".to_string(),
-                &"node".to_string(),
-                true,
-                &"suffix".to_string()
-            )
+            create_pod_app_name(&"instance-name".to_string(), &"node".to_string(), true, &"suffix".to_string())
         );
         assert_eq!(
             "instance-name-suffix",
-            create_pod_app_name(
-                &"instance-name".to_string(),
-                &"node".to_string(),
-                false,
-                &"suffix".to_string()
-            )
+            create_pod_app_name(&"instance-name".to_string(), &"node".to_string(), false, &"suffix".to_string())
         );
 
         assert_eq!(
             "node-1-0-0-1-suffix",
-            create_pod_app_name(
-                &"1-0-0-1".to_string(),
-                &"node".to_string(),
-                true,
-                &"suffix".to_string()
-            )
+            create_pod_app_name(&"1-0-0-1".to_string(), &"node".to_string(), true, &"suffix".to_string())
         );
         assert_eq!(
             "1-0-0-1-suffix",
-            create_pod_app_name(
-                &"1-0-0-1".to_string(),
-                &"node".to_string(),
-                false,
-                &"suffix".to_string()
-            )
+            create_pod_app_name(&"1-0-0-1".to_string(), &"node".to_string(), false, &"suffix".to_string())
         );
     }
 
@@ -428,11 +357,7 @@ mod broker_podspec_tests {
                 &pod_namespace,
                 &instance_name,
                 &configuration_name,
-                OwnershipInfo::new(
-                    OwnershipType::Instance,
-                    instance_name.clone(),
-                    instance_uid.clone(),
-                ),
+                OwnershipInfo::new(OwnershipType::Instance, instance_name.clone(), instance_uid.clone()),
                 &resource_limit_name,
                 &node_to_run_pod_on,
                 *capability_is_shared,
@@ -440,127 +365,41 @@ mod broker_podspec_tests {
             )
             .unwrap();
 
-            let app_name = create_pod_app_name(
-                &instance_name,
-                &node_to_run_pod_on,
-                *capability_is_shared,
-                &"pod".to_string(),
-            );
+            let app_name =
+                create_pod_app_name(&instance_name, &node_to_run_pod_on, *capability_is_shared, &"pod".to_string());
 
             // Validate the metadata name/namesapce
             assert_eq!(&app_name, &pod.metadata.clone().unwrap().name.unwrap());
-            assert_eq!(
-                &pod_namespace,
-                &pod.metadata.clone().unwrap().namespace.unwrap()
-            );
+            assert_eq!(&pod_namespace, &pod.metadata.clone().unwrap().namespace.unwrap());
 
             // Validate the labels added
-            assert_eq!(
-                &&app_name,
-                &pod.metadata
-                    .clone()
-                    .unwrap()
-                    .labels
-                    .unwrap()
-                    .get(APP_LABEL_ID)
-                    .unwrap()
-            );
+            assert_eq!(&&app_name, &pod.metadata.clone().unwrap().labels.unwrap().get(APP_LABEL_ID).unwrap());
             assert_eq!(
                 &&API_NAMESPACE.to_string(),
-                &pod.metadata
-                    .clone()
-                    .unwrap()
-                    .labels
-                    .unwrap()
-                    .get(CONTROLLER_LABEL_ID)
-                    .unwrap()
+                &pod.metadata.clone().unwrap().labels.unwrap().get(CONTROLLER_LABEL_ID).unwrap()
             );
             assert_eq!(
                 &&configuration_name,
-                &pod.metadata
-                    .clone()
-                    .unwrap()
-                    .labels
-                    .unwrap()
-                    .get(AKRI_CONFIGURATION_LABEL_NAME)
-                    .unwrap()
+                &pod.metadata.clone().unwrap().labels.unwrap().get(AKRI_CONFIGURATION_LABEL_NAME).unwrap()
             );
             assert_eq!(
                 &&instance_name,
-                &pod.metadata
-                    .clone()
-                    .unwrap()
-                    .labels
-                    .unwrap()
-                    .get(AKRI_INSTANCE_LABEL_NAME)
-                    .unwrap()
+                &pod.metadata.clone().unwrap().labels.unwrap().get(AKRI_INSTANCE_LABEL_NAME).unwrap()
             );
             assert_eq!(
                 &&node_to_run_pod_on,
-                &pod.metadata
-                    .clone()
-                    .unwrap()
-                    .labels
-                    .unwrap()
-                    .get(AKRI_TARGET_NODE_LABEL_NAME)
-                    .unwrap()
+                &pod.metadata.clone().unwrap().labels.unwrap().get(AKRI_TARGET_NODE_LABEL_NAME).unwrap()
             );
 
             // Validate ownerReference
-            assert_eq!(
-                instance_name,
-                pod.metadata
-                    .clone()
-                    .unwrap()
-                    .owner_references
-                    .unwrap()
-                    .get(0)
-                    .unwrap()
-                    .name
-            );
-            assert_eq!(
-                instance_uid,
-                pod.metadata
-                    .clone()
-                    .unwrap()
-                    .owner_references
-                    .unwrap()
-                    .get(0)
-                    .unwrap()
-                    .uid
-            );
-            assert_eq!(
-                "Instance",
-                &pod.metadata
-                    .clone()
-                    .unwrap()
-                    .owner_references
-                    .unwrap()
-                    .get(0)
-                    .unwrap()
-                    .kind
-            );
+            assert_eq!(instance_name, pod.metadata.clone().unwrap().owner_references.unwrap().get(0).unwrap().name);
+            assert_eq!(instance_uid, pod.metadata.clone().unwrap().owner_references.unwrap().get(0).unwrap().uid);
+            assert_eq!("Instance", &pod.metadata.clone().unwrap().owner_references.unwrap().get(0).unwrap().kind);
             assert_eq!(
                 &format!("{}/{}", API_NAMESPACE, API_VERSION),
-                &pod.metadata
-                    .clone()
-                    .unwrap()
-                    .owner_references
-                    .unwrap()
-                    .get(0)
-                    .unwrap()
-                    .api_version
+                &pod.metadata.clone().unwrap().owner_references.unwrap().get(0).unwrap().api_version
             );
-            assert!(pod
-                .metadata
-                .clone()
-                .unwrap()
-                .owner_references
-                .unwrap()
-                .get(0)
-                .unwrap()
-                .controller
-                .unwrap());
+            assert!(pod.metadata.clone().unwrap().owner_references.unwrap().get(0).unwrap().controller.unwrap());
             assert!(pod
                 .metadata
                 .clone()
@@ -726,15 +565,7 @@ mod broker_podspec_tests {
             for i in 0..num_containers {
                 assert_eq!(
                     &image_names.get(i).unwrap(),
-                    &pod.spec
-                        .clone()
-                        .unwrap()
-                        .containers
-                        .get(i)
-                        .unwrap()
-                        .image
-                        .as_ref()
-                        .unwrap()
+                    &pod.spec.clone().unwrap().containers.get(i).unwrap().image.as_ref().unwrap()
                 );
 
                 // Validate existing limits/requires unchanged
@@ -867,10 +698,7 @@ pub async fn create_pod(
     info!("create_pod pods.create(...).await?:");
     match pods.create(&PostParams::default(), pod_as_u8).await {
         Ok(created_pod) => {
-            info!(
-                "create_pod pods.create return: {:?}",
-                created_pod.metadata.name
-            );
+            info!("create_pod pods.create return: {:?}", created_pod.metadata.name);
             Ok(())
         }
         Err(kube::Error::Api(ae)) => {
@@ -887,11 +715,7 @@ pub async fn create_pod(
             }
         }
         Err(e) => {
-            error!(
-                "create_pod pods.create [{:?}] error: {:?}",
-                serde_json::to_string(&pod_to_create),
-                e
-            );
+            error!("create_pod pods.create [{:?}] error: {:?}", serde_json::to_string(&pod_to_create), e);
             Err(e.into())
         }
     }
@@ -936,18 +760,12 @@ pub async fn remove_pod(
                 trace!("remove_pod - pod already removed");
                 Ok(())
             } else {
-                error!(
-                    "remove_pod pods.delete [{:?}] returned kube error: {:?}",
-                    &pod_to_remove, ae
-                );
+                error!("remove_pod pods.delete [{:?}] returned kube error: {:?}", &pod_to_remove, ae);
                 Err(ae.into())
             }
         }
         Err(e) => {
-            error!(
-                "remove_pod pods.delete [{:?}] error: {:?}",
-                &pod_to_remove, e
-            );
+            error!("remove_pod pods.delete [{:?}] error: {:?}", &pod_to_remove, e);
             Err(e.into())
         }
     }

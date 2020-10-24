@@ -43,10 +43,7 @@ impl Camera for CameraService {
 /// This creates camera server
 pub async fn serve(devnode: &str, camera_capturer: RsCamera) -> Result<(), String> {
     trace!("Entered serve for camera service");
-    let camera_service = CameraService {
-        camera_capturer,
-        devnode: devnode.to_string(),
-    };
+    let camera_service = CameraService { camera_capturer, devnode: devnode.to_string() };
     let service = CameraServer::new(camera_service);
 
     let addr_str = format!("{}:{}", CAMERA_SERVICE_SERVER_ADDRESS, CAMERA_SERVICE_PORT);
@@ -59,11 +56,7 @@ pub async fn serve(devnode: &str, camera_capturer: RsCamera) -> Result<(), Strin
 
     tokio::task::spawn(async move {
         trace!("Entered Server::builder task (addr: {})", &addr);
-        tonic::transport::Server::builder()
-            .add_service(service)
-            .serve(addr)
-            .await
-            .expect("couldn't build server");
+        tonic::transport::Server::builder().add_service(service).serve(addr).await.expect("couldn't build server");
         trace!("Exit Server::builder task");
     });
 
@@ -72,23 +65,13 @@ pub async fn serve(devnode: &str, camera_capturer: RsCamera) -> Result<(), Strin
     // Similar to grpc.timeout, which is yet to be implemented for tonic
     // See issue: https://github.com/hyperium/tonic/issues/75
     let mut connected = false;
-    let start = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards")
-        .as_secs();
+    let start = SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_secs();
     let start_plus_10 = start + 10;
 
-    while (SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards")
-        .as_secs()
-        < start_plus_10)
+    while (SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_secs() < start_plus_10)
         && !connected
     {
-        let client_addr_str = format!(
-            "http://{}:{}",
-            CAMERA_SERVICE_TEST_LOCALHOST, CAMERA_SERVICE_PORT
-        );
+        let client_addr_str = format!("http://{}:{}", CAMERA_SERVICE_TEST_LOCALHOST, CAMERA_SERVICE_PORT);
         connected = match CameraClient::connect(client_addr_str).await {
             Ok(_) => {
                 trace!("Connected to server, stop polling");

@@ -176,10 +176,7 @@ pub mod registration_client {
             request: impl tonic::IntoRequest<super::RegisterRequest>,
         ) -> Result<tonic::Response<super::Empty>, tonic::Status> {
             self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
+                tonic::Status::new(tonic::Code::Unknown, format!("Service was not ready: {}", e.into()))
             })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/v1beta1.Registration/Register");
@@ -188,9 +185,7 @@ pub mod registration_client {
     }
     impl<T: Clone> Clone for RegistrationClient<T> {
         fn clone(&self) -> Self {
-            Self {
-                inner: self.inner.clone(),
-            }
+            Self { inner: self.inner.clone() }
         }
     }
 }
@@ -235,15 +230,10 @@ pub mod device_plugin_client {
             request: impl tonic::IntoRequest<super::Empty>,
         ) -> Result<tonic::Response<super::DevicePluginOptions>, tonic::Status> {
             self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
+                tonic::Status::new(tonic::Code::Unknown, format!("Service was not ready: {}", e.into()))
             })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/v1beta1.DevicePlugin/GetDevicePluginOptions",
-            );
+            let path = http::uri::PathAndQuery::from_static("/v1beta1.DevicePlugin/GetDevicePluginOptions");
             self.inner.unary(request.into_request(), path, codec).await
         }
         #[doc = " ListAndWatch returns a stream of List of Devices"]
@@ -252,21 +242,13 @@ pub mod device_plugin_client {
         pub async fn list_and_watch(
             &mut self,
             request: impl tonic::IntoRequest<super::Empty>,
-        ) -> Result<
-            tonic::Response<tonic::codec::Streaming<super::ListAndWatchResponse>>,
-            tonic::Status,
-        > {
+        ) -> Result<tonic::Response<tonic::codec::Streaming<super::ListAndWatchResponse>>, tonic::Status> {
             self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
+                tonic::Status::new(tonic::Code::Unknown, format!("Service was not ready: {}", e.into()))
             })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/v1beta1.DevicePlugin/ListAndWatch");
-            self.inner
-                .server_streaming(request.into_request(), path, codec)
-                .await
+            self.inner.server_streaming(request.into_request(), path, codec).await
         }
         #[doc = " Allocate is called during container creation so that the Device"]
         #[doc = " Plugin can run device specific operations and instruct Kubelet"]
@@ -276,10 +258,7 @@ pub mod device_plugin_client {
             request: impl tonic::IntoRequest<super::AllocateRequest>,
         ) -> Result<tonic::Response<super::AllocateResponse>, tonic::Status> {
             self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
+                tonic::Status::new(tonic::Code::Unknown, format!("Service was not ready: {}", e.into()))
             })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/v1beta1.DevicePlugin/Allocate");
@@ -293,22 +272,16 @@ pub mod device_plugin_client {
             request: impl tonic::IntoRequest<super::PreStartContainerRequest>,
         ) -> Result<tonic::Response<super::PreStartContainerResponse>, tonic::Status> {
             self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
+                tonic::Status::new(tonic::Code::Unknown, format!("Service was not ready: {}", e.into()))
             })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/v1beta1.DevicePlugin/PreStartContainer");
+            let path = http::uri::PathAndQuery::from_static("/v1beta1.DevicePlugin/PreStartContainer");
             self.inner.unary(request.into_request(), path, codec).await
         }
     }
     impl<T: Clone> Clone for DevicePluginClient<T> {
         fn clone(&self) -> Self {
-            Self {
-                inner: self.inner.clone(),
-            }
+            Self { inner: self.inner.clone() }
         }
     }
 }
@@ -363,10 +336,7 @@ pub mod registration_server {
                     impl<T: Registration> tonic::server::UnaryService<super::RegisterRequest> for RegisterSvc<T> {
                         type Response = super::Empty;
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::RegisterRequest>,
-                        ) -> Self::Future {
+                        fn call(&mut self, request: tonic::Request<super::RegisterRequest>) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move { inner.register(request).await };
                             Box::pin(fut)
@@ -519,8 +489,7 @@ pub mod device_plugin_server {
                     impl<T: DevicePlugin> tonic::server::ServerStreamingService<super::Empty> for ListAndWatchSvc<T> {
                         type Response = super::ListAndWatchResponse;
                         type ResponseStream = T::ListAndWatchStream;
-                        type Future =
-                            BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
+                        type Future = BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
                         fn call(&mut self, request: tonic::Request<super::Empty>) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move { inner.list_and_watch(request).await };
@@ -548,10 +517,7 @@ pub mod device_plugin_server {
                     impl<T: DevicePlugin> tonic::server::UnaryService<super::AllocateRequest> for AllocateSvc<T> {
                         type Response = super::AllocateResponse;
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::AllocateRequest>,
-                        ) -> Self::Future {
+                        fn call(&mut self, request: tonic::Request<super::AllocateRequest>) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move { inner.allocate(request).await };
                             Box::pin(fut)
@@ -575,16 +541,10 @@ pub mod device_plugin_server {
                 }
                 "/v1beta1.DevicePlugin/PreStartContainer" => {
                     struct PreStartContainerSvc<T: DevicePlugin>(pub Arc<T>);
-                    impl<T: DevicePlugin>
-                        tonic::server::UnaryService<super::PreStartContainerRequest>
-                        for PreStartContainerSvc<T>
-                    {
+                    impl<T: DevicePlugin> tonic::server::UnaryService<super::PreStartContainerRequest> for PreStartContainerSvc<T> {
                         type Response = super::PreStartContainerResponse;
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::PreStartContainerRequest>,
-                        ) -> Self::Future {
+                        fn call(&mut self, request: tonic::Request<super::PreStartContainerRequest>) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move { inner.pre_start_container(request).await };
                             Box::pin(fut)

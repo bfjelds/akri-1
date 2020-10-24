@@ -2,8 +2,8 @@ use super::super::{DiscoveryHandler, DiscoveryResult};
 use super::discovery_impl::util;
 use akri_shared::akri::configuration::{FilterList, FilterType, OnvifDiscoveryHandlerConfig};
 use akri_shared::onvif::device_info::{
-    OnvifQuery, OnvifQueryImpl, ONVIF_DEVICE_IP_ADDRESS_LABEL_ID,
-    ONVIF_DEVICE_MAC_ADDRESS_LABEL_ID, ONVIF_DEVICE_SERVICE_URL_LABEL_ID,
+    OnvifQuery, OnvifQueryImpl, ONVIF_DEVICE_IP_ADDRESS_LABEL_ID, ONVIF_DEVICE_MAC_ADDRESS_LABEL_ID,
+    ONVIF_DEVICE_SERVICE_URL_LABEL_ID,
 };
 use async_trait::async_trait;
 use failure::Error;
@@ -19,9 +19,7 @@ pub struct OnvifDiscoveryHandler {
 
 impl OnvifDiscoveryHandler {
     pub fn new(discovery_handler_config: &OnvifDiscoveryHandlerConfig) -> Self {
-        OnvifDiscoveryHandler {
-            discovery_handler_config: discovery_handler_config.clone(),
-        }
+        OnvifDiscoveryHandler { discovery_handler_config: discovery_handler_config.clone() }
     }
 
     fn execute_filter(filter_list: Option<&FilterList>, filter_against: &[String]) -> bool {
@@ -34,11 +32,7 @@ impl OnvifDiscoveryHandler {
             .items
             .iter()
             .filter(|pattern| {
-                filter_against
-                    .iter()
-                    .filter(|filter_against_item| filter_against_item.contains(*pattern))
-                    .count()
-                    > 0
+                filter_against.iter().filter(|filter_against_item| filter_against_item.contains(*pattern)).count() > 0
             })
             .count();
 
@@ -57,10 +51,7 @@ impl OnvifDiscoveryHandler {
         let mut result = Vec::new();
         for device_service_url in device_service_uris.iter() {
             trace!("apply_filters - device service url {}", &device_service_url);
-            let (ip_address, mac_address) = match onvif_query
-                .get_device_ip_and_mac_address(&device_service_url)
-                .await
-            {
+            let (ip_address, mac_address) = match onvif_query.get_device_ip_and_mac_address(&device_service_url).await {
                 Ok(ip_and_mac) => ip_and_mac,
                 Err(e) => {
                     error!("apply_filters - error getting ip and mac address: {}", e);
@@ -96,18 +87,12 @@ impl OnvifDiscoveryHandler {
                     continue;
                 }
             };
-            if OnvifDiscoveryHandler::execute_filter(
-                self.discovery_handler_config.scopes.as_ref(),
-                &device_scopes,
-            ) {
+            if OnvifDiscoveryHandler::execute_filter(self.discovery_handler_config.scopes.as_ref(), &device_scopes) {
                 continue;
             }
 
             let mut properties = HashMap::new();
-            properties.insert(
-                ONVIF_DEVICE_SERVICE_URL_LABEL_ID.to_string(),
-                device_service_url.to_string(),
-            );
+            properties.insert(ONVIF_DEVICE_SERVICE_URL_LABEL_ID.to_string(), device_service_url.to_string());
             properties.insert(ONVIF_DEVICE_IP_ADDRESS_LABEL_ID.into(), ip_address);
             properties.insert(ONVIF_DEVICE_MAC_ADDRESS_LABEL_ID.into(), mac_address);
 
@@ -116,11 +101,7 @@ impl OnvifDiscoveryHandler {
                 &ip_and_mac_joined,
                 &properties
             );
-            result.push(DiscoveryResult::new(
-                &ip_and_mac_joined,
-                properties,
-                self.are_shared().unwrap(),
-            ))
+            result.push(DiscoveryResult::new(&ip_and_mac_joined, properties, self.are_shared().unwrap()))
         }
         Ok(result)
     }
@@ -137,9 +118,7 @@ impl DiscoveryHandler for OnvifDiscoveryHandler {
         ))
         .await?;
         info!("discover - discovered:{:?}", &discovered_onvif_cameras,);
-        let filtered_onvif_cameras = self
-            .apply_filters(discovered_onvif_cameras, &onvif_query)
-            .await;
+        let filtered_onvif_cameras = self.apply_filters(discovered_onvif_cameras, &onvif_query).await;
         info!("discover - filtered:{:?}", &filtered_onvif_cameras);
         filtered_onvif_cameras
     }
@@ -164,11 +143,7 @@ mod tests {
         mock_scope: &'static str,
     }
 
-    fn configure_scenario(
-        mock: &mut MockOnvifQueryImpl,
-        ip_and_mac: Option<IpAndMac>,
-        scope: Option<Scope>,
-    ) {
+    fn configure_scenario(mock: &mut MockOnvifQueryImpl, ip_and_mac: Option<IpAndMac>, scope: Option<Scope>) {
         if let Some(ip_and_mac_) = ip_and_mac {
             configure_get_device_ip_and_mac_address(
                 mock,
@@ -194,11 +169,7 @@ mod tests {
             .returning(move |_| Ok((ip.to_string(), mac.to_string())));
     }
 
-    fn configure_get_device_scopes(
-        mock: &mut MockOnvifQueryImpl,
-        uri: &'static str,
-        scope: &'static str,
-    ) {
+    fn configure_get_device_scopes(mock: &mut MockOnvifQueryImpl, uri: &'static str, scope: &'static str) {
         mock.expect_get_device_scopes()
             .times(1)
             .withf(move |u| u == uri)
@@ -212,15 +183,8 @@ mod tests {
         let mut mock = MockOnvifQueryImpl::new();
         configure_scenario(
             &mut mock,
-            Some(IpAndMac {
-                mock_uri: "device_uri",
-                mock_ip: "mock.ip",
-                mock_mac: "mock:mac",
-            }),
-            Some(Scope {
-                mock_uri: "device_uri",
-                mock_scope: "mock.scope",
-            }),
+            Some(IpAndMac { mock_uri: "device_uri", mock_ip: "mock.ip", mock_mac: "mock:mac" }),
+            Some(Scope { mock_uri: "device_uri", mock_scope: "mock.scope" }),
         );
 
         let onvif = OnvifDiscoveryHandler::new(&OnvifDiscoveryHandlerConfig {
@@ -229,10 +193,7 @@ mod tests {
             scopes: None,
             discovery_timeout_seconds: 1,
         });
-        let instances = onvif
-            .apply_filters(vec![mock_uri.to_string()], &mock)
-            .await
-            .unwrap();
+        let instances = onvif.apply_filters(vec![mock_uri.to_string()], &mock).await.unwrap();
 
         assert_eq!(1, instances.len());
     }
@@ -245,30 +206,17 @@ mod tests {
         let mut mock = MockOnvifQueryImpl::new();
         configure_scenario(
             &mut mock,
-            Some(IpAndMac {
-                mock_uri,
-                mock_ip,
-                mock_mac: "mock:mac",
-            }),
-            Some(Scope {
-                mock_uri,
-                mock_scope: "mock.scope",
-            }),
+            Some(IpAndMac { mock_uri, mock_ip, mock_mac: "mock:mac" }),
+            Some(Scope { mock_uri, mock_scope: "mock.scope" }),
         );
 
         let onvif = OnvifDiscoveryHandler::new(&OnvifDiscoveryHandlerConfig {
-            ip_addresses: Some(FilterList {
-                action: FilterType::Include,
-                items: vec![mock_ip.to_string()],
-            }),
+            ip_addresses: Some(FilterList { action: FilterType::Include, items: vec![mock_ip.to_string()] }),
             mac_addresses: None,
             scopes: None,
             discovery_timeout_seconds: 1,
         });
-        let instances = onvif
-            .apply_filters(vec![mock_uri.to_string()], &mock)
-            .await
-            .unwrap();
+        let instances = onvif.apply_filters(vec![mock_uri.to_string()], &mock).await.unwrap();
 
         assert_eq!(1, instances.len());
     }
@@ -278,29 +226,15 @@ mod tests {
         let mock_uri = "device_uri";
 
         let mut mock = MockOnvifQueryImpl::new();
-        configure_scenario(
-            &mut mock,
-            Some(IpAndMac {
-                mock_uri,
-                mock_ip: "mock.ip",
-                mock_mac: "mock:mac",
-            }),
-            None,
-        );
+        configure_scenario(&mut mock, Some(IpAndMac { mock_uri, mock_ip: "mock.ip", mock_mac: "mock:mac" }), None);
 
         let onvif = OnvifDiscoveryHandler::new(&OnvifDiscoveryHandlerConfig {
-            ip_addresses: Some(FilterList {
-                action: FilterType::Include,
-                items: vec!["nonexist.ip".to_string()],
-            }),
+            ip_addresses: Some(FilterList { action: FilterType::Include, items: vec!["nonexist.ip".to_string()] }),
             mac_addresses: None,
             scopes: None,
             discovery_timeout_seconds: 1,
         });
-        let instances = onvif
-            .apply_filters(vec![mock_uri.to_string()], &mock)
-            .await
-            .unwrap();
+        let instances = onvif.apply_filters(vec![mock_uri.to_string()], &mock).await.unwrap();
 
         assert_eq!(0, instances.len());
     }
@@ -312,30 +246,17 @@ mod tests {
         let mut mock = MockOnvifQueryImpl::new();
         configure_scenario(
             &mut mock,
-            Some(IpAndMac {
-                mock_uri,
-                mock_ip: "mock.ip",
-                mock_mac: "mock:mac",
-            }),
-            Some(Scope {
-                mock_uri,
-                mock_scope: "mock.scope",
-            }),
+            Some(IpAndMac { mock_uri, mock_ip: "mock.ip", mock_mac: "mock:mac" }),
+            Some(Scope { mock_uri, mock_scope: "mock.scope" }),
         );
 
         let onvif = OnvifDiscoveryHandler::new(&OnvifDiscoveryHandlerConfig {
-            ip_addresses: Some(FilterList {
-                action: FilterType::Exclude,
-                items: vec!["nonexist.ip".to_string()],
-            }),
+            ip_addresses: Some(FilterList { action: FilterType::Exclude, items: vec!["nonexist.ip".to_string()] }),
             mac_addresses: None,
             scopes: None,
             discovery_timeout_seconds: 1,
         });
-        let instances = onvif
-            .apply_filters(vec![mock_uri.to_string()], &mock)
-            .await
-            .unwrap();
+        let instances = onvif.apply_filters(vec![mock_uri.to_string()], &mock).await.unwrap();
 
         assert_eq!(1, instances.len());
     }
@@ -346,29 +267,15 @@ mod tests {
         let mock_ip = "mock.ip";
 
         let mut mock = MockOnvifQueryImpl::new();
-        configure_scenario(
-            &mut mock,
-            Some(IpAndMac {
-                mock_uri,
-                mock_ip,
-                mock_mac: "mock:mac",
-            }),
-            None,
-        );
+        configure_scenario(&mut mock, Some(IpAndMac { mock_uri, mock_ip, mock_mac: "mock:mac" }), None);
 
         let onvif = OnvifDiscoveryHandler::new(&OnvifDiscoveryHandlerConfig {
-            ip_addresses: Some(FilterList {
-                action: FilterType::Exclude,
-                items: vec![mock_ip.to_string()],
-            }),
+            ip_addresses: Some(FilterList { action: FilterType::Exclude, items: vec![mock_ip.to_string()] }),
             mac_addresses: None,
             scopes: None,
             discovery_timeout_seconds: 1,
         });
-        let instances = onvif
-            .apply_filters(vec![mock_uri.to_string()], &mock)
-            .await
-            .unwrap();
+        let instances = onvif.apply_filters(vec![mock_uri.to_string()], &mock).await.unwrap();
 
         assert_eq!(0, instances.len());
     }
@@ -381,30 +288,17 @@ mod tests {
         let mut mock = MockOnvifQueryImpl::new();
         configure_scenario(
             &mut mock,
-            Some(IpAndMac {
-                mock_uri,
-                mock_ip: "mock.ip",
-                mock_mac,
-            }),
-            Some(Scope {
-                mock_uri,
-                mock_scope: "mock.scope",
-            }),
+            Some(IpAndMac { mock_uri, mock_ip: "mock.ip", mock_mac }),
+            Some(Scope { mock_uri, mock_scope: "mock.scope" }),
         );
 
         let onvif = OnvifDiscoveryHandler::new(&OnvifDiscoveryHandlerConfig {
             ip_addresses: None,
-            mac_addresses: Some(FilterList {
-                action: FilterType::Include,
-                items: vec![mock_mac.to_string()],
-            }),
+            mac_addresses: Some(FilterList { action: FilterType::Include, items: vec![mock_mac.to_string()] }),
             scopes: None,
             discovery_timeout_seconds: 1,
         });
-        let instances = onvif
-            .apply_filters(vec![mock_uri.to_string()], &mock)
-            .await
-            .unwrap();
+        let instances = onvif.apply_filters(vec![mock_uri.to_string()], &mock).await.unwrap();
 
         assert_eq!(1, instances.len());
     }
@@ -414,29 +308,15 @@ mod tests {
         let mock_uri = "device_uri";
 
         let mut mock = MockOnvifQueryImpl::new();
-        configure_scenario(
-            &mut mock,
-            Some(IpAndMac {
-                mock_uri,
-                mock_ip: "mock.ip",
-                mock_mac: "mock:mac",
-            }),
-            None,
-        );
+        configure_scenario(&mut mock, Some(IpAndMac { mock_uri, mock_ip: "mock.ip", mock_mac: "mock:mac" }), None);
 
         let onvif = OnvifDiscoveryHandler::new(&OnvifDiscoveryHandlerConfig {
             ip_addresses: None,
-            mac_addresses: Some(FilterList {
-                action: FilterType::Include,
-                items: vec!["nonexist:mac".to_string()],
-            }),
+            mac_addresses: Some(FilterList { action: FilterType::Include, items: vec!["nonexist:mac".to_string()] }),
             scopes: None,
             discovery_timeout_seconds: 1,
         });
-        let instances = onvif
-            .apply_filters(vec![mock_uri.to_string()], &mock)
-            .await
-            .unwrap();
+        let instances = onvif.apply_filters(vec![mock_uri.to_string()], &mock).await.unwrap();
 
         assert_eq!(0, instances.len());
     }
@@ -448,30 +328,17 @@ mod tests {
         let mut mock = MockOnvifQueryImpl::new();
         configure_scenario(
             &mut mock,
-            Some(IpAndMac {
-                mock_uri,
-                mock_ip: "mock.ip",
-                mock_mac: "mock:mac",
-            }),
-            Some(Scope {
-                mock_uri,
-                mock_scope: "mock.scope",
-            }),
+            Some(IpAndMac { mock_uri, mock_ip: "mock.ip", mock_mac: "mock:mac" }),
+            Some(Scope { mock_uri, mock_scope: "mock.scope" }),
         );
 
         let onvif = OnvifDiscoveryHandler::new(&OnvifDiscoveryHandlerConfig {
             ip_addresses: None,
-            mac_addresses: Some(FilterList {
-                action: FilterType::Exclude,
-                items: vec!["nonexist:mac".to_string()],
-            }),
+            mac_addresses: Some(FilterList { action: FilterType::Exclude, items: vec!["nonexist:mac".to_string()] }),
             scopes: None,
             discovery_timeout_seconds: 1,
         });
-        let instances = onvif
-            .apply_filters(vec![mock_uri.to_string()], &mock)
-            .await
-            .unwrap();
+        let instances = onvif.apply_filters(vec![mock_uri.to_string()], &mock).await.unwrap();
 
         assert_eq!(1, instances.len());
     }
@@ -482,29 +349,15 @@ mod tests {
         let mock_mac = "mock:mac";
 
         let mut mock = MockOnvifQueryImpl::new();
-        configure_scenario(
-            &mut mock,
-            Some(IpAndMac {
-                mock_uri,
-                mock_ip: "mock.ip",
-                mock_mac,
-            }),
-            None,
-        );
+        configure_scenario(&mut mock, Some(IpAndMac { mock_uri, mock_ip: "mock.ip", mock_mac }), None);
 
         let onvif = OnvifDiscoveryHandler::new(&OnvifDiscoveryHandlerConfig {
             ip_addresses: None,
-            mac_addresses: Some(FilterList {
-                action: FilterType::Exclude,
-                items: vec![mock_mac.to_string()],
-            }),
+            mac_addresses: Some(FilterList { action: FilterType::Exclude, items: vec![mock_mac.to_string()] }),
             scopes: None,
             discovery_timeout_seconds: 1,
         });
-        let instances = onvif
-            .apply_filters(vec![mock_uri.to_string()], &mock)
-            .await
-            .unwrap();
+        let instances = onvif.apply_filters(vec![mock_uri.to_string()], &mock).await.unwrap();
 
         assert_eq!(0, instances.len());
     }

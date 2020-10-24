@@ -1,8 +1,8 @@
 use super::{API_INSTANCES, API_NAMESPACE, API_VERSION};
 use kube::{
     api::{
-        DeleteParams, ListParams, Object, ObjectList, ObjectMeta, OwnerReference, PatchParams,
-        PostParams, RawApi, TypeMeta, Void,
+        DeleteParams, ListParams, Object, ObjectList, ObjectMeta, OwnerReference, PatchParams, PostParams, RawApi,
+        TypeMeta, Void,
     },
     client::APIClient,
 };
@@ -68,28 +68,18 @@ pub async fn get_instances(
     kube_client: &APIClient,
 ) -> Result<KubeAkriInstanceList, Box<dyn std::error::Error + Send + Sync + 'static>> {
     log::trace!("get_instances enter");
-    let akri_instance_type = RawApi::customResource(API_INSTANCES)
-        .group(API_NAMESPACE)
-        .version(API_VERSION);
+    let akri_instance_type = RawApi::customResource(API_INSTANCES).group(API_NAMESPACE).version(API_VERSION);
 
     log::trace!("get_instances kube_client.request::<KubeAkriInstanceList>(akri_instance_type.list(...)?).await?");
 
-    let instance_list_params = ListParams {
-        ..Default::default()
-    };
-    match kube_client
-        .request::<KubeAkriInstanceList>(akri_instance_type.list(&instance_list_params)?)
-        .await
-    {
+    let instance_list_params = ListParams { ..Default::default() };
+    match kube_client.request::<KubeAkriInstanceList>(akri_instance_type.list(&instance_list_params)?).await {
         Ok(configs_retrieved) => {
             log::trace!("get_instances return");
             Ok(configs_retrieved)
         }
         Err(kube::Error::Api(ae)) => {
-            log::trace!(
-                "get_instances kube_client.request returned kube error: {:?}",
-                ae
-            );
+            log::trace!("get_instances kube_client.request returned kube error: {:?}", ae);
             Err(ae.into())
         }
         Err(e) => {
@@ -123,28 +113,18 @@ pub async fn find_instance(
     kube_client: &APIClient,
 ) -> Result<KubeAkriInstance, Box<dyn std::error::Error + Send + Sync + 'static>> {
     log::trace!("find_instance enter");
-    let akri_instance_type = RawApi::customResource(API_INSTANCES)
-        .group(API_NAMESPACE)
-        .version(API_VERSION)
-        .within(&namespace);
+    let akri_instance_type =
+        RawApi::customResource(API_INSTANCES).group(API_NAMESPACE).version(API_VERSION).within(&namespace);
 
-    log::trace!(
-        "find_instance kube_client.request::<KubeAkriInstance>(akri_instance_type.get(...)?).await?"
-    );
+    log::trace!("find_instance kube_client.request::<KubeAkriInstance>(akri_instance_type.get(...)?).await?");
 
-    match kube_client
-        .request::<KubeAkriInstance>(akri_instance_type.get(&name)?)
-        .await
-    {
+    match kube_client.request::<KubeAkriInstance>(akri_instance_type.get(&name)?).await {
         Ok(config_retrieved) => {
             log::trace!("find_instance return");
             Ok(config_retrieved)
         }
         Err(kube::Error::Api(ae)) => {
-            log::trace!(
-                "find_instance kube_client.request returned kube error: {:?}",
-                ae
-            );
+            log::trace!("find_instance kube_client.request returned kube error: {:?}", ae);
             Err(ae.into())
         }
         Err(e) => {
@@ -192,10 +172,8 @@ pub async fn create_instance(
     kube_client: &APIClient,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     log::trace!("create_instance enter");
-    let akri_instance_type = RawApi::customResource(API_INSTANCES)
-        .group(API_NAMESPACE)
-        .version(API_VERSION)
-        .within(&namespace);
+    let akri_instance_type =
+        RawApi::customResource(API_INSTANCES).group(API_NAMESPACE).version(API_VERSION).within(&namespace);
 
     let kube_instance = KubeAkriInstance {
         metadata: ObjectMeta {
@@ -220,23 +198,16 @@ pub async fn create_instance(
     let binary_instance = serde_json::to_vec(&kube_instance)?;
     log::trace!("create_instance akri_instance_type.create");
     let instance_create_params = PostParams::default();
-    let create_request = akri_instance_type
-        .create(&instance_create_params, binary_instance)
-        .expect("failed to create request");
+    let create_request =
+        akri_instance_type.create(&instance_create_params, binary_instance).expect("failed to create request");
     log::trace!("create_instance kube_client.request::<KubeAkriInstance>(akri_instance_type.create(...)?).await?");
-    match kube_client
-        .request::<KubeAkriInstance>(create_request)
-        .await
-    {
+    match kube_client.request::<KubeAkriInstance>(create_request).await {
         Ok(_instance_created) => {
             log::trace!("create_instance return");
             Ok(())
         }
         Err(kube::Error::Api(ae)) => {
-            log::trace!(
-                "create_instance kube_client.request returned kube error: {:?}",
-                ae
-            );
+            log::trace!("create_instance kube_client.request returned kube error: {:?}", ae);
             Err(ae.into())
         }
         Err(e) => {
@@ -270,16 +241,12 @@ pub async fn delete_instance(
     kube_client: &APIClient,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     log::trace!("delete_instance enter");
-    let akri_instance_type = RawApi::customResource(API_INSTANCES)
-        .group(API_NAMESPACE)
-        .version(API_VERSION)
-        .within(&namespace);
+    let akri_instance_type =
+        RawApi::customResource(API_INSTANCES).group(API_NAMESPACE).version(API_VERSION).within(&namespace);
 
     log::trace!("delete_instance akri_instance_type.delete");
     let instance_delete_params = DeleteParams::default();
-    let delete_request = akri_instance_type
-        .delete(name, &instance_delete_params)
-        .expect("failed to delete request");
+    let delete_request = akri_instance_type.delete(name, &instance_delete_params).expect("failed to delete request");
     log::trace!("delete_instance kube_client.request::<KubeAkriInstance>(akri_instance_type.delete(...)?).await?");
     match kube_client.request::<Void>(delete_request).await {
         Ok(_void_response) => {
@@ -287,10 +254,7 @@ pub async fn delete_instance(
             Ok(())
         }
         Err(kube::Error::Api(ae)) => {
-            log::trace!(
-                "delete_instance kube_client.request returned kube error: {:?}",
-                ae
-            );
+            log::trace!("delete_instance kube_client.request returned kube error: {:?}", ae);
             Err(ae.into())
         }
         Err(e) => {
@@ -334,10 +298,8 @@ pub async fn update_instance(
     kube_client: &APIClient,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     log::trace!("update_instance enter");
-    let akri_instance_type = RawApi::customResource(API_INSTANCES)
-        .group(API_NAMESPACE)
-        .version(API_VERSION)
-        .within(&namespace);
+    let akri_instance_type =
+        RawApi::customResource(API_INSTANCES).group(API_NAMESPACE).version(API_VERSION).within(&namespace);
 
     let existing_kube_akri_instance_type = find_instance(name, namespace, kube_client).await?;
     let modified_kube_instance = KubeAkriInstance {
@@ -346,17 +308,13 @@ pub async fn update_instance(
         status: existing_kube_akri_instance_type.status,
         types: existing_kube_akri_instance_type.types,
     };
-    log::trace!(
-        "update_instance wrapped_instance: {:?}",
-        serde_json::to_string(&modified_kube_instance).unwrap()
-    );
+    log::trace!("update_instance wrapped_instance: {:?}", serde_json::to_string(&modified_kube_instance).unwrap());
     let binary_instance = serde_json::to_vec(&modified_kube_instance)?;
 
     log::trace!("update_instance akri_instance_type.patch");
     let instance_patch_params = PatchParams::default();
-    let patch_request = akri_instance_type
-        .patch(name, &instance_patch_params, binary_instance)
-        .expect("failed to create request");
+    let patch_request =
+        akri_instance_type.patch(name, &instance_patch_params, binary_instance).expect("failed to create request");
     log::trace!("update_instance kube_client.request::<KubeAkriInstance>(akri_instance_type.patch(...)?).await?");
     match kube_client.request::<KubeAkriInstance>(patch_request).await {
         Ok(_instance_modified) => {
@@ -364,10 +322,7 @@ pub async fn update_instance(
             Ok(())
         }
         Err(kube::Error::Api(ae)) => {
-            log::trace!(
-                "update_instance kube_client.request returned kube error: {:?}",
-                ae
-            );
+            log::trace!("update_instance kube_client.request returned kube error: {:?}", ae);
             Err(ae.into())
         }
         Err(e) => {
@@ -422,7 +377,8 @@ mod crd_serializeation_tests {
         assert_eq!(0, deserialized.rbac.len());
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
-        let expected_deserialized = r#"{"configurationName":"foo","metadata":{},"shared":false,"nodes":[],"deviceUsage":{},"rbac":""}"#;
+        let expected_deserialized =
+            r#"{"configurationName":"foo","metadata":{},"shared":false,"nodes":[],"deviceUsage":{},"rbac":""}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
@@ -442,7 +398,8 @@ mod crd_serializeation_tests {
         assert_eq!(0, deserialized.rbac.len());
 
         let serialized = serde_json::to_string(&deserialized).unwrap();
-        let expected_deserialized = r#"{"configurationName":"foo","metadata":{},"shared":false,"nodes":[],"deviceUsage":{},"rbac":""}"#;
+        let expected_deserialized =
+            r#"{"configurationName":"foo","metadata":{},"shared":false,"nodes":[],"deviceUsage":{},"rbac":""}"#;
         assert_eq!(expected_deserialized, serialized);
     }
 
@@ -466,10 +423,7 @@ mod crd_serializeation_tests {
     fn test_real_instance() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let files = [
-            "../test/yaml/akri-instance-onvif-camera.yaml",
-            "../test/yaml/akri-instance-usb-camera.yaml",
-        ];
+        let files = ["../test/yaml/akri-instance-onvif-camera.yaml", "../test/yaml/akri-instance-usb-camera.yaml"];
         for file in &files {
             let yaml = file::read_file_to_string(&file);
             let deserialized: InstanceCRD = serde_yaml::from_str(&yaml).unwrap();

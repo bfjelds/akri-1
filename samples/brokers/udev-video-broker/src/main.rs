@@ -18,10 +18,7 @@ pub const UDEV_DEVNODE_LABEL_ID: &str = "UDEV_DEVNODE";
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     println!("{} udev_broker ... env_logger::init", API_NAMESPACE);
     env_logger::try_init().unwrap();
-    println!(
-        "{} udev_broker ... env_logger::init finished",
-        API_NAMESPACE
-    );
+    println!("{} udev_broker ... env_logger::init finished", API_NAMESPACE);
     info!("{} Udev Broker logging started", API_NAMESPACE);
 
     // Set up shutdown channel
@@ -37,9 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     // let frames_per_second = get_frames_per_second(&env_var_query);
     // let resolution = get_resolution(&env_var_query);
     let camera_capturer = camera_capturer::build_and_start_camera_capturer(&devnode);
-    camera_service::serve(&devnode, camera_capturer)
-        .await
-        .unwrap();
+    camera_service::serve(&devnode, camera_capturer).await.unwrap();
 
     trace!("Waiting for shutdown signal");
     // wait for exit signal
@@ -53,9 +48,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
 fn get_video_devnode(env_var_query: &impl EnvVarQuery) -> String {
     trace!("get_video_devnode - getting devnode");
 
-    let device_devnode = env_var_query
-        .get_env_var(UDEV_DEVNODE_LABEL_ID)
-        .expect("devnode not set in envrionment variable");
+    let device_devnode =
+        env_var_query.get_env_var(UDEV_DEVNODE_LABEL_ID).expect("devnode not set in envrionment variable");
 
     trace!("get_video_devnode - found devnode {}", device_devnode);
     device_devnode

@@ -1,8 +1,6 @@
 extern crate udev;
 
-use super::udev_device::{
-    get_devnode, get_devpath, get_driver, get_property_value, get_sysname, DeviceExt,
-};
+use super::udev_device::{get_devnode, get_devpath, get_driver, get_property_value, get_sysname, DeviceExt};
 use super::udev_enumerator::Enumerator;
 use pest::iterators::Pair;
 use pest::Parser;
@@ -22,16 +20,10 @@ pub struct UdevFilter<'a> {
 }
 
 /// This parses the udev rule into UdevFilters and finds all devices that match those filters
-pub fn do_parse_and_find(
-    enumerator: impl Enumerator,
-    udev_rule_string: &str,
-) -> Result<Vec<String>, failure::Error> {
+pub fn do_parse_and_find(enumerator: impl Enumerator, udev_rule_string: &str) -> Result<Vec<String>, failure::Error> {
     let udev_filters = parse_udev_rule(udev_rule_string)?;
     let devpaths = find_devices(enumerator, udev_filters)?;
-    trace!(
-        "do_parse_and_find - returning discovered devices with devpaths: {:?}",
-        devpaths
-    );
+    trace!("do_parse_and_find - returning discovered devices with devpaths: {:?}", devpaths);
     Ok(devpaths)
 }
 
@@ -45,10 +37,7 @@ pub fn do_parse_and_find(
 /// Udev discovery is only interested in match fields, so all action fields, such as TEST, are ignored
 /// Some match fields that look up the device hierarchy, such as SUBSYSTEMS, are yet to be supported and are also ignored
 fn parse_udev_rule(udev_rule_string: &str) -> Result<Vec<UdevFilter>, failure::Error> {
-    info!(
-        "parse_udev_rule - enter for udev rule string {}",
-        udev_rule_string
-    );
+    info!("parse_udev_rule - enter for udev rule string {}", udev_rule_string);
     let mut udev_filters: Vec<UdevFilter> = Vec::new();
 
     // So long as parse succeeds, subsequent unwraps will not fails, since they are following the
@@ -60,49 +49,30 @@ fn parse_udev_rule(udev_rule_string: &str) -> Result<Vec<UdevFilter>, failure::E
         .next() // move to first rule in inner_rule aka udev_filter
         .unwrap(); // does not panic because inner_rule always has udev_filter
 
-    trace!(
-        "parse_udev_rule - parsing udev_rule {:?}",
-        udev_rule.as_str()
-    );
+    trace!("parse_udev_rule - parsing udev_rule {:?}", udev_rule.as_str());
     for udev_filter in udev_rule.into_inner() {
         let mut inner_rules = udev_filter.into_inner();
         let field_pair = inner_rules.next().unwrap();
         let inner_field = field_pair.into_inner().next().unwrap();
         // Ignore unsupported fields
         if inner_field.as_rule() == Rule::unsupported_field {
-            trace!(
-                "parse_udev_rule - unsupported field {}",
-                inner_field.into_inner().next().unwrap().as_str()
-            );
+            trace!("parse_udev_rule - unsupported field {}", inner_field.into_inner().next().unwrap().as_str());
             continue;
         }
 
-        let operation = inner_rules
-            .next()
-            .unwrap()
-            .into_inner()
-            .next()
-            .unwrap()
-            .as_rule();
+        let operation = inner_rules.next().unwrap().into_inner().next().unwrap().as_rule();
         let mut quoted_value = inner_rules.next().unwrap().into_inner();
         let value = quoted_value.next().unwrap().as_str();
         // ignore action operations
         if operation != Rule::action_operation {
-            udev_filters.push(UdevFilter {
-                field: inner_field,
-                operation,
-                value: value.to_string(),
-            });
+            udev_filters.push(UdevFilter { field: inner_field, operation, value: value.to_string() });
         }
     }
     Ok(udev_filters)
 }
 
 /// This searches for devices that match the UdevFilters and returns their devpaths
-fn find_devices(
-    enumerator: impl Enumerator,
-    udev_filters: Vec<UdevFilter>,
-) -> std::io::Result<Vec<String>> {
+fn find_devices(enumerator: impl Enumerator, udev_filters: Vec<UdevFilter>) -> std::io::Result<Vec<String>> {
     let mut enumerator = enumerator;
     trace!("find_devices - enter with udev_filters {:?}", udev_filters);
 
@@ -111,14 +81,7 @@ fn find_devices(
     // (1) Enumerator can filter for field by equality/match
     // (2) Enumerator can filter for field by inequality/nomatch
     // (3) Enumerator cannot filter for field. Must manually filter by looking at each Device the filtered Enumerator returns.
-    let match_fields = vec![
-        Rule::devpath,
-        Rule::kernel,
-        Rule::tag,
-        Rule::subsystem,
-        Rule::attribute,
-        Rule::property,
-    ];
+    let match_fields = vec![Rule::devpath, Rule::kernel, Rule::tag, Rule::subsystem, Rule::attribute, Rule::property];
     let nomatch_fields = vec![Rule::attribute, Rule::subsystem];
 
     let mut match_udev_filters: Vec<&UdevFilter> = Vec::new();
@@ -127,13 +90,9 @@ fn find_devices(
 
     // Sort UdevFilters based off of which group they belong to
     udev_filters.iter().for_each(|udev_filter| {
-        if udev_filter.operation == Rule::equality
-            && match_fields.contains(&udev_filter.field.as_rule())
-        {
+        if udev_filter.operation == Rule::equality && match_fields.contains(&udev_filter.field.as_rule()) {
             match_udev_filters.push(udev_filter);
-        } else if udev_filter.operation == Rule::inequality
-            && nomatch_fields.contains(&udev_filter.field.as_rule())
-        {
+        } else if udev_filter.operation == Rule::inequality && nomatch_fields.contains(&udev_filter.field.as_rule()) {
             nomatch_udev_filters.push(udev_filter);
         } else {
             remaining_udev_filters.push(udev_filter);
@@ -162,10 +121,7 @@ fn find_devices(
 
 /// This adds equality filters to the Enumerator
 fn filter_by_match_udev_filters(enumerator: &mut impl Enumerator, udev_filters: Vec<&UdevFilter>) {
-    trace!(
-        "enumerator_match_udev_filters - enter with udev_filters {:?}",
-        udev_filters
-    );
+    trace!("enumerator_match_udev_filters - enter with udev_filters {:?}", udev_filters);
     for udev_filter in udev_filters {
         match udev_filter.field.as_rule() {
             Rule::devpath => {
@@ -183,29 +139,11 @@ fn filter_by_match_udev_filters(enumerator: &mut impl Enumerator, udev_filters: 
                 enumerator.match_subsystem(&udev_filter.value).unwrap();
             }
             Rule::attribute => {
-                let key = udev_filter
-                    .field
-                    .clone()
-                    .into_inner()
-                    .next()
-                    .unwrap()
-                    .into_inner()
-                    .next()
-                    .unwrap()
-                    .as_str();
+                let key = udev_filter.field.clone().into_inner().next().unwrap().into_inner().next().unwrap().as_str();
                 enumerator.match_attribute(key, &udev_filter.value).unwrap();
             }
             Rule::property => {
-                let key = udev_filter
-                    .field
-                    .clone()
-                    .into_inner()
-                    .next()
-                    .unwrap()
-                    .into_inner()
-                    .next()
-                    .unwrap()
-                    .as_str();
+                let key = udev_filter.field.clone().into_inner().next().unwrap().into_inner().next().unwrap().as_str();
                 enumerator.match_property(key, &udev_filter.value).unwrap();
             }
             _ => {
@@ -216,30 +154,13 @@ fn filter_by_match_udev_filters(enumerator: &mut impl Enumerator, udev_filters: 
 }
 
 /// This adds inequality filters to the Enumerator
-fn filter_by_nomatch_udev_filters(
-    enumerator: &mut impl Enumerator,
-    udev_filters: Vec<&UdevFilter>,
-) {
-    trace!(
-        "enumerator_nomatch_udev_filters - enter with udev_filters {:?}",
-        udev_filters
-    );
+fn filter_by_nomatch_udev_filters(enumerator: &mut impl Enumerator, udev_filters: Vec<&UdevFilter>) {
+    trace!("enumerator_nomatch_udev_filters - enter with udev_filters {:?}", udev_filters);
     for udev_filter in udev_filters {
         match udev_filter.field.as_rule() {
             Rule::attribute => {
-                let key = udev_filter
-                    .field
-                    .clone()
-                    .into_inner()
-                    .next()
-                    .unwrap()
-                    .into_inner()
-                    .next()
-                    .unwrap()
-                    .as_str();
-                enumerator
-                    .nomatch_attribute(key, &udev_filter.value)
-                    .unwrap();
+                let key = udev_filter.field.clone().into_inner().next().unwrap().into_inner().next().unwrap().as_str();
+                enumerator.nomatch_attribute(key, &udev_filter.value).unwrap();
             }
             Rule::subsystem => {
                 enumerator.nomatch_subsystem(&udev_filter.value).unwrap();
@@ -257,10 +178,7 @@ fn filter_by_remaining_udev_filters(
     devices: Vec<impl DeviceExt>,
     udev_filters: Vec<&UdevFilter>,
 ) -> Vec<impl DeviceExt> {
-    trace!(
-        "filter_by_remaining_udev_filters - enter with udev_filters {:?}",
-        udev_filters
-    );
+    trace!("filter_by_remaining_udev_filters - enter with udev_filters {:?}", udev_filters);
     let mut mutable_devices = devices;
     for udev_filter in udev_filters {
         match udev_filter.field.as_rule() {
@@ -272,9 +190,7 @@ fn filter_by_remaining_udev_filters(
                     .filter(|device| {
                         let devpath = get_devpath(device).to_str().unwrap();
                         match re.find(devpath) {
-                            Some(found_string) => {
-                                found_string.start() != 0 || found_string.end() != devpath.len()
-                            }
+                            Some(found_string) => found_string.start() != 0 || found_string.end() != devpath.len(),
                             None => true,
                         }
                     })
@@ -288,9 +204,7 @@ fn filter_by_remaining_udev_filters(
                     .filter(|device| {
                         let sysname = get_sysname(device).to_str().unwrap();
                         match re.find(sysname) {
-                            Some(found_string) => {
-                                found_string.start() != 0 || found_string.end() != sysname.len()
-                            }
+                            Some(found_string) => found_string.start() != 0 || found_string.end() != sysname.len(),
                             None => true,
                         }
                     })
@@ -308,8 +222,7 @@ fn filter_by_remaining_udev_filters(
                             let mut include = true;
                             for tag in tags {
                                 if let Some(found_string) = re.find(tag) {
-                                    if found_string.start() == 0 && found_string.end() == tag.len()
-                                    {
+                                    if found_string.start() == 0 && found_string.end() == tag.len() {
                                         include = false;
                                         break;
                                     }
@@ -323,16 +236,7 @@ fn filter_by_remaining_udev_filters(
                     .collect();
             }
             Rule::property => {
-                let key = udev_filter
-                    .field
-                    .clone()
-                    .into_inner()
-                    .next()
-                    .unwrap()
-                    .into_inner()
-                    .next()
-                    .unwrap()
-                    .as_str();
+                let key = udev_filter.field.clone().into_inner().next().unwrap().into_inner().next().unwrap().as_str();
                 let re = Regex::new(&udev_filter.value).unwrap();
                 // Filter for inequality. Equality already accounted for in filter_by_match_udev_filters
                 mutable_devices = mutable_devices
@@ -342,8 +246,7 @@ fn filter_by_remaining_udev_filters(
                             let property_value_str = property_value.to_str().unwrap();
                             match re.find(property_value_str) {
                                 Some(found_string) => {
-                                    found_string.start() != 0
-                                        || found_string.end() != property_value_str.len()
+                                    found_string.start() != 0 || found_string.end() != property_value_str.len()
                                 }
                                 None => true,
                             }
@@ -363,8 +266,7 @@ fn filter_by_remaining_udev_filters(
                             let driver = driver.to_str().unwrap();
                             match re.find(driver) {
                                 Some(found_string) => {
-                                    let is_match = found_string.start() == 0
-                                        && found_string.end() == driver.len();
+                                    let is_match = found_string.start() == 0 && found_string.end() == driver.len();
                                     (is_equality && is_match) || (!is_equality && !is_match)
                                 }
                                 None => !is_equality,
@@ -490,30 +392,18 @@ mod discovery_tests {
     fn test_filter_by_match_udev_filters() {
         let rule = "SUBSYSTEM==\"video4linux\", ATTR{someKey}==\"1000\", KERNEL==\"video0\", ENV{ID}==\"1\", TAG==\"some_tag\", DEVPATH==\"/devices/path\"";
         let mut mock = MockEnumerator::new();
-        mock.expect_match_subsystem()
-            .times(1)
-            .withf(move |value: &str| value == "video4linux")
-            .returning(|_| Ok(()));
+        mock.expect_match_subsystem().times(1).withf(move |value: &str| value == "video4linux").returning(|_| Ok(()));
         mock.expect_match_attribute()
             .times(1)
             .withf(move |key: &str, value: &str| key == "someKey" && value == "1000")
             .returning(|_, _| Ok(()));
-        mock.expect_match_sysname()
-            .times(1)
-            .withf(move |value: &str| value == "video0")
-            .returning(|_| Ok(()));
+        mock.expect_match_sysname().times(1).withf(move |value: &str| value == "video0").returning(|_| Ok(()));
         mock.expect_match_property()
             .times(1)
             .withf(move |key: &str, value: &str| key == "ID" && value == "1")
             .returning(|_, _| Ok(()));
-        mock.expect_match_tag()
-            .times(1)
-            .withf(move |value: &str| value == "some_tag")
-            .returning(|_| Ok(()));
-        mock.expect_add_syspath()
-            .times(1)
-            .withf(move |value: &str| value == "/sys/devices/path")
-            .returning(|_| Ok(()));
+        mock.expect_match_tag().times(1).withf(move |value: &str| value == "some_tag").returning(|_| Ok(()));
+        mock.expect_add_syspath().times(1).withf(move |value: &str| value == "/sys/devices/path").returning(|_| Ok(()));
         let udev_filters = parse_udev_rule(rule).unwrap();
         let udev_filters: Vec<&UdevFilter> = udev_filters.iter().collect();
         filter_by_match_udev_filters(&mut mock, udev_filters);
@@ -523,10 +413,7 @@ mod discovery_tests {
     fn test_filter_by_nomatch_udev_filters() {
         let rule = "SUBSYSTEM!=\"usb\", ATTR{someKey}!=\"1000\"";
         let mut mock = MockEnumerator::new();
-        mock.expect_nomatch_subsystem()
-            .times(1)
-            .withf(move |value: &str| value == "usb")
-            .returning(|_| Ok(()));
+        mock.expect_nomatch_subsystem().times(1).withf(move |value: &str| value == "usb").returning(|_| Ok(()));
         mock.expect_nomatch_attribute()
             .times(1)
             .withf(move |key: &str, value: &str| key == "someKey" && value == "1000")
@@ -600,14 +487,8 @@ mod discovery_tests {
         let filtered_devices = filter_by_remaining_udev_filters(devices, udev_filters);
 
         assert_eq!(filtered_devices.len(), 2);
-        assert_eq!(
-            get_sysname(&filtered_devices[0]).to_str().unwrap(),
-            "/sys/mock2"
-        );
-        assert_eq!(
-            get_sysname(&filtered_devices[1]).to_str().unwrap(),
-            "/sys/mock4"
-        );
+        assert_eq!(get_sysname(&filtered_devices[0]).to_str().unwrap(), "/sys/mock2");
+        assert_eq!(get_sysname(&filtered_devices[1]).to_str().unwrap(), "/sys/mock4");
 
         let rule = "DRIVER==\"include\"";
         let mock_device = MockDevice {
@@ -628,23 +509,15 @@ mod discovery_tests {
     fn test_do_parse_and_find() {
         let rule = "KERNEL==\"video[0-9]*\",ATTR{someKey}!=\"1000\", SUBSYSTEMS==\"usb\", SUBSYSTEM==\"video4linux\", SYMLINK+=\"video-cam\"";
         let mut mock = MockEnumerator::new();
-        mock.expect_match_subsystem()
-            .times(1)
-            .withf(move |value: &str| value == "video4linux")
-            .returning(|_| Ok(()));
+        mock.expect_match_subsystem().times(1).withf(move |value: &str| value == "video4linux").returning(|_| Ok(()));
         mock.expect_nomatch_attribute()
             .times(1)
             .withf(move |key: &str, value: &str| key == "someKey" && value == "1000")
             .returning(|_, _| Ok(()));
-        mock.expect_match_sysname()
-            .times(1)
-            .withf(move |value: &str| value == "video[0-9]*")
-            .returning(|_| Ok(()));
+        mock.expect_match_sysname().times(1).withf(move |value: &str| value == "video[0-9]*").returning(|_| Ok(()));
         mock.expect_scan_devices().times(1).returning(|| {
             let mut enumerator = create_enumerator();
-            enumerator
-                .match_attribute("random", "attribute_that_should_not_be_found")
-                .unwrap();
+            enumerator.match_attribute("random", "attribute_that_should_not_be_found").unwrap();
             enumerator.scan_devices()
         });
         assert_eq!(do_parse_and_find(mock, rule).unwrap().len(), 0);

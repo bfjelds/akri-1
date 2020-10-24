@@ -21,19 +21,11 @@ pub fn get_container_slot_usage(crictl_output: &str) -> HashSet<String> {
         Ok(crictl_output_parsed) => crictl_output_parsed
             .containers
             .iter()
-            .filter_map(|container| {
-                container
-                    .annotations
-                    .get(&AKRI_SLOT_ANNOTATION_NAME.to_string())
-            })
+            .filter_map(|container| container.annotations.get(&AKRI_SLOT_ANNOTATION_NAME.to_string()))
             .map(|string_ref| string_ref.to_string())
             .collect(),
         Err(e) => {
-            trace!(
-                "handle_crictl_output - failed to parse crictl output: {:?} => [{:?}]",
-                e,
-                &crictl_output
-            );
+            trace!("handle_crictl_output - failed to parse crictl output: {:?} => [{:?}]", e, &crictl_output);
             HashSet::default()
         }
     }
@@ -44,7 +36,8 @@ mod tests {
     use super::*;
 
     fn get_container_str(annotation: &str) -> String {
-        format!("{{ \
+        format!(
+            "{{ \
           \"id\": \"46afc04a13ac21d73ff93843efd39590d66927d9b5d743d239542cf2f6de703e\", \
           \"podSandboxId\": \"9094d7341170ecbc6fb0a6a72ba449c8ea98d3267c60e06d815d03102ca7a3e6\", \
           \"metadata\": {{ \
@@ -72,7 +65,8 @@ mod tests {
             \"io.kubernetes.pod.terminationGracePeriod\": \"30\" \
           }} \
         }}",
-        annotation)
+            annotation
+        )
     }
 
     #[test]
@@ -84,22 +78,13 @@ mod tests {
         // Empty json output
         assert_eq!(HashSet::<String>::new(), get_container_slot_usage(r#"{}"#));
         // Expected output with no containers
-        assert_eq!(
-            HashSet::<String>::new(),
-            get_container_slot_usage(r#"{\"containers\": []}"#)
-        );
+        assert_eq!(HashSet::<String>::new(), get_container_slot_usage(r#"{\"containers\": []}"#));
         // Output with syntax error
+        assert_eq!(HashSet::<String>::new(), get_container_slot_usage(r#"{ddd}"#)); // syntax error
+                                                                                    // Expected output with no slot
         assert_eq!(
             HashSet::<String>::new(),
-            get_container_slot_usage(r#"{ddd}"#)
-        ); // syntax error
-           // Expected output with no slot
-        assert_eq!(
-            HashSet::<String>::new(),
-            get_container_slot_usage(&format!(
-                "{{ \"containers\": [ {} ] }}",
-                &get_container_str("")
-            ))
+            get_container_slot_usage(&format!("{{ \"containers\": [ {} ] }}", &get_container_str("")))
         );
         // Expected output with slot (including unexpected property)
         let mut expected = HashSet::new();

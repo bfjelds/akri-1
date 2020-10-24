@@ -33,11 +33,7 @@ pub fn build_and_start_camera_capturer(devnode: &str) -> RsCamera {
     // Get camera formats and convert them from [u8] to String so can compare them with env and default format
     let format_options: Vec<String> = camera_capturer
         .formats()
-        .map(|wformat| {
-            std::str::from_utf8(&wformat.unwrap().format)
-                .unwrap()
-                .to_string()
-        })
+        .map(|wformat| std::str::from_utf8(&wformat.unwrap().format).unwrap().to_string())
         .collect();
     let format_string = get_format(&env_var_query, format_options);
     let format = format_string[..].as_bytes();
@@ -46,14 +42,7 @@ pub fn build_and_start_camera_capturer(devnode: &str) -> RsCamera {
     let interval_info = camera_capturer.intervals(&format, resolution).unwrap();
     let interval = get_interval(&env_var_query, interval_info);
     trace!("build_and_start_camera_capturer - before starting camera");
-    camera_capturer
-        .start(&Config {
-            interval,
-            resolution,
-            format,
-            ..Default::default()
-        })
-        .unwrap();
+    camera_capturer.start(&Config { interval, resolution, format, ..Default::default() }).unwrap();
     trace!("build_and_start_camera_capturer - after starting camera");
     camera_capturer
 }
@@ -63,10 +52,7 @@ fn get_format(env_var_query: &impl EnvVarQuery, format_options: Vec<String>) -> 
     let format_to_find = match env_var_query.get_env_var(FORMAT) {
         Ok(format) => format,
         Err(_) => {
-            trace!(
-                "get_format - format not set ... trying to use {:?}",
-                DEFAULT_FORMAT
-            );
+            trace!("get_format - format not set ... trying to use {:?}", DEFAULT_FORMAT);
             DEFAULT_FORMAT.to_string()
         }
     };
@@ -139,10 +125,7 @@ fn get_interval_options(interval_info: rscam::IntervalInfo) -> Vec<Resolution> {
 }
 
 /// This calls a function to get the desired resolution from an environment variable. If not set, it will use default. If default is not supported, uses first supported resolution.
-fn get_resolution(
-    env_var_query: &impl EnvVarQuery,
-    resolution_info: rscam::ResolutionInfo,
-) -> Resolution {
+fn get_resolution(env_var_query: &impl EnvVarQuery, resolution_info: rscam::ResolutionInfo) -> Resolution {
     let env_var_resolution = get_env_var_resolution(env_var_query);
 
     let resolution_to_validate = match env_var_resolution {
@@ -161,10 +144,7 @@ fn get_resolution(
         );
         resolution_options[0]
     } else {
-        trace!(
-            "get_resolution - using resolution {:?}",
-            resolution_to_validate
-        );
+        trace!("get_resolution - using resolution {:?}", resolution_to_validate);
         resolution_to_validate
     }
 }
@@ -222,8 +202,7 @@ mod tests {
 
         let mut mock_query = MockEnvVarQuery::new();
         const MOCK_FORMAT: &str = "YUYV";
-        let mut format_options: Vec<String> =
-            vec!["OTHR".to_string(), "YUYV".to_string(), "MJPG".to_string()];
+        let mut format_options: Vec<String> = vec!["OTHR".to_string(), "YUYV".to_string(), "MJPG".to_string()];
 
         // Test when env var set and camera supports that format
         mock_query
@@ -231,10 +210,7 @@ mod tests {
             .times(1)
             .withf(move |name: &str| name == FORMAT)
             .returning(move |_| Ok(MOCK_FORMAT.to_string()));
-        assert_eq!(
-            "YUYV".to_string(),
-            get_format(&mock_query, format_options.clone())
-        );
+        assert_eq!("YUYV".to_string(), get_format(&mock_query, format_options.clone()));
 
         // Test when env var not set but camera supports default
         mock_query
@@ -243,10 +219,7 @@ mod tests {
             .withf(move |name: &str| name == FORMAT)
             .returning(move |_| Err(VarError::NotPresent));
 
-        assert_eq!(
-            "MJPG".to_string(),
-            get_format(&mock_query, format_options.clone())
-        );
+        assert_eq!("MJPG".to_string(), get_format(&mock_query, format_options.clone()));
 
         // Test when env var not set and camera does not support default
         format_options.pop();
@@ -265,10 +238,7 @@ mod tests {
             .withf(move |name: &str| name == FORMAT)
             .returning(move |_| Ok(MOCK_FORMAT.to_string()));
         // Should choose first one
-        assert_eq!(
-            "OTHR".to_string(),
-            get_format(&mock_query, minimal_format_options)
-        );
+        assert_eq!("OTHR".to_string(), get_format(&mock_query, minimal_format_options));
     }
 
     #[test]
@@ -286,14 +256,7 @@ mod tests {
             .returning(move |_| Ok(MOCK_INTERVAL.to_string()));
         assert_eq!(
             (1, 3),
-            get_interval(
-                &mock_query,
-                rscam::IntervalInfo::Stepwise {
-                    min: (1, 1),
-                    max: (1, 30),
-                    step: (0, 2),
-                }
-            )
+            get_interval(&mock_query, rscam::IntervalInfo::Stepwise { min: (1, 1), max: (1, 30), step: (0, 2) })
         );
 
         // Test when env var not set but camera supports default
@@ -305,14 +268,7 @@ mod tests {
 
         assert_eq!(
             (1, 10),
-            get_interval(
-                &mock_query,
-                rscam::IntervalInfo::Stepwise {
-                    min: (1, 1),
-                    max: (1, 30),
-                    step: (0, 9),
-                }
-            )
+            get_interval(&mock_query, rscam::IntervalInfo::Stepwise { min: (1, 1), max: (1, 30), step: (0, 9) })
         );
 
         // Test when env var not set and camera does not support default
@@ -325,14 +281,7 @@ mod tests {
         assert_eq!(
             // returns slowest interval
             (1, 1),
-            get_interval(
-                &mock_query,
-                rscam::IntervalInfo::Stepwise {
-                    min: (1, 1),
-                    max: (1, 30),
-                    step: (0, 2),
-                }
-            )
+            get_interval(&mock_query, rscam::IntervalInfo::Stepwise { min: (1, 1), max: (1, 30), step: (0, 2) })
         );
         // Test when env var set and camera does not support that interval nor the default one
         mock_query
@@ -342,14 +291,7 @@ mod tests {
             .returning(move |_| Ok(MOCK_INTERVAL.to_string()));
         assert_eq!(
             (1, 1),
-            get_interval(
-                &mock_query,
-                rscam::IntervalInfo::Stepwise {
-                    min: (1, 1),
-                    max: (1, 30),
-                    step: (0, 5),
-                }
-            )
+            get_interval(&mock_query, rscam::IntervalInfo::Stepwise { min: (1, 1), max: (1, 30), step: (0, 5) })
         );
     }
 
@@ -365,13 +307,7 @@ mod tests {
             .times(1)
             .withf(move |name: &str| name == FRAMES_PER_SECOND)
             .returning(move |_| Ok(MOCK_INTERVAL.to_string()));
-        assert_eq!(
-            (1, 3),
-            get_interval(
-                &mock_query,
-                rscam::IntervalInfo::Discretes(vec![(1, 1), (1, 3), (1, 5)])
-            )
-        );
+        assert_eq!((1, 3), get_interval(&mock_query, rscam::IntervalInfo::Discretes(vec![(1, 1), (1, 3), (1, 5)])));
 
         // Test when env var not set but camera supports default
         mock_query
@@ -380,13 +316,7 @@ mod tests {
             .withf(move |name: &str| name == FRAMES_PER_SECOND)
             .returning(move |_| Err(VarError::NotPresent));
 
-        assert_eq!(
-            (1, 10),
-            get_interval(
-                &mock_query,
-                rscam::IntervalInfo::Discretes(vec![(1, 1), (1, 3), (1, 10)])
-            )
-        );
+        assert_eq!((1, 10), get_interval(&mock_query, rscam::IntervalInfo::Discretes(vec![(1, 1), (1, 3), (1, 10)])));
 
         // Test when env var not set and camera does not support default
         mock_query
@@ -398,10 +328,7 @@ mod tests {
         assert_eq!(
             // returns slowest interval
             (1, 1),
-            get_interval(
-                &mock_query,
-                rscam::IntervalInfo::Discretes(vec![(1, 1), (1, 3), (1, 5)])
-            )
+            get_interval(&mock_query, rscam::IntervalInfo::Discretes(vec![(1, 1), (1, 3), (1, 5)]))
         );
 
         // Test when env var set and camera does not support that interval nor the default one
@@ -410,13 +337,7 @@ mod tests {
             .times(1)
             .withf(move |name: &str| name == FRAMES_PER_SECOND)
             .returning(move |_| Ok(MOCK_INTERVAL.to_string()));
-        assert_eq!(
-            (1, 1),
-            get_interval(
-                &mock_query,
-                rscam::IntervalInfo::Discretes(vec![(1, 1), (1, 2), (1, 5)])
-            )
-        );
+        assert_eq!((1, 1), get_interval(&mock_query, rscam::IntervalInfo::Discretes(vec![(1, 1), (1, 2), (1, 5)])));
     }
 
     #[test]
@@ -442,11 +363,7 @@ mod tests {
             (424, 240),
             get_resolution(
                 &mock_query,
-                rscam::ResolutionInfo::Stepwise {
-                    min: (224, 140),
-                    max: (1280, 800),
-                    step: (200, 100),
-                }
+                rscam::ResolutionInfo::Stepwise { min: (224, 140), max: (1280, 800), step: (200, 100) }
             )
         );
 
@@ -460,11 +377,7 @@ mod tests {
             (DEFAULT_RESOLUTION_WIDTH, DEFAULT_RESOLUTION_HEIGHT), // (640, 480)
             get_resolution(
                 &mock_query,
-                rscam::ResolutionInfo::Stepwise {
-                    min: (440, 280),
-                    max: (1280, 800),
-                    step: (200, 200),
-                }
+                rscam::ResolutionInfo::Stepwise { min: (440, 280), max: (1280, 800), step: (200, 200) }
             )
         );
 
@@ -478,11 +391,7 @@ mod tests {
             (160, 120),
             get_resolution(
                 &mock_query,
-                rscam::ResolutionInfo::Stepwise {
-                    min: (160, 120),
-                    max: (1280, 800),
-                    step: (100, 100),
-                }
+                rscam::ResolutionInfo::Stepwise { min: (160, 120), max: (1280, 800), step: (100, 100) }
             )
         );
 
@@ -501,11 +410,7 @@ mod tests {
             (160, 120),
             get_resolution(
                 &mock_query,
-                rscam::ResolutionInfo::Stepwise {
-                    min: (160, 120),
-                    max: (1280, 800),
-                    step: (100, 100),
-                }
+                rscam::ResolutionInfo::Stepwise { min: (160, 120), max: (1280, 800), step: (100, 100) }
             )
         );
     }
@@ -531,10 +436,7 @@ mod tests {
             .returning(move |_| Ok(MOCK_RESOLUTION_HEIGHT.to_string()));
         assert_eq!(
             (424, 240),
-            get_resolution(
-                &mock_query,
-                rscam::ResolutionInfo::Discretes(vec!((200, 100), (424, 240), (1000, 800)))
-            )
+            get_resolution(&mock_query, rscam::ResolutionInfo::Discretes(vec!((200, 100), (424, 240), (1000, 800))))
         );
 
         // Test when env var not set but camera supports default
@@ -547,12 +449,7 @@ mod tests {
             (DEFAULT_RESOLUTION_WIDTH, DEFAULT_RESOLUTION_HEIGHT), // (640, 480)
             get_resolution(
                 &mock_query,
-                rscam::ResolutionInfo::Discretes(vec!(
-                    (200, 100),
-                    (424, 240),
-                    (640, 480),
-                    (1000, 800)
-                ))
+                rscam::ResolutionInfo::Discretes(vec!((200, 100), (424, 240), (640, 480), (1000, 800)))
             )
         );
 
@@ -564,10 +461,7 @@ mod tests {
             .returning(move |_| Err(VarError::NotPresent));
         assert_eq!(
             (200, 100),
-            get_resolution(
-                &mock_query,
-                rscam::ResolutionInfo::Discretes(vec!((200, 100), (450, 240), (1000, 800)))
-            )
+            get_resolution(&mock_query, rscam::ResolutionInfo::Discretes(vec!((200, 100), (450, 240), (1000, 800))))
         );
 
         // Test when env var set and camera does not support that interval nor the default one
@@ -583,10 +477,7 @@ mod tests {
             .returning(move |_| Ok(MOCK_RESOLUTION_HEIGHT.to_string()));
         assert_eq!(
             (200, 100),
-            get_resolution(
-                &mock_query,
-                rscam::ResolutionInfo::Discretes(vec!((200, 100), (500, 250), (1000, 800)))
-            )
+            get_resolution(&mock_query, rscam::ResolutionInfo::Discretes(vec!((200, 100), (500, 250), (1000, 800))))
         );
     }
 }

@@ -85,8 +85,7 @@ pub mod probe_types {
     pub const DEVICE_NAMESPACE_PREFIX: &str = "devwsdl";
     pub const NETWORK_VIDEO_TRANSMITTER_NAMESPACE_PREFIX: &str = "netwsdl";
     pub const DEVICE_NAMESPACE_DESCRIPTOR: &str = "devwsdl: http://www.onvif.org/ver10/device/wsdl";
-    pub const NETWORK_VIDEO_TRANSMITTER_NAMESPACE_DESCRIPTOR: &str =
-        "netwsdl: http://www.onvif.org/ver10/network/wsdl";
+    pub const NETWORK_VIDEO_TRANSMITTER_NAMESPACE_DESCRIPTOR: &str = "netwsdl: http://www.onvif.org/ver10/network/wsdl";
     pub const DEVICE: &str = "devwsdl:Device";
     pub const NETWORK_VIDEO_TRANSMITTER: &str = "netwsdl:NetworkVideoTransmitter";
 }
@@ -127,10 +126,7 @@ mod common {
     }
 
     #[derive(Default, PartialEq, Debug, YaDeserialize, YaSerialize)]
-    #[yaserde(
-        prefix = "d",
-        namespace = "d: http://schemas.xmlsoap.org/ws/2005/04/discovery"
-    )]
+    #[yaserde(prefix = "d", namespace = "d: http://schemas.xmlsoap.org/ws/2005/04/discovery")]
     pub struct ProbeMatches {
         #[yaserde(prefix = "d", rename = "ProbeMatch")]
         pub probe_match: Vec<ProbeMatch>,
@@ -159,15 +155,10 @@ pub mod util {
                 action: "http://schemas.xmlsoap.org/ws/2005/04/discovery/Probe".into(),
                 reply_to: "urn:schemas-xmlsoap-org:ws:2005:04:discovery".into(),
             },
-            body: to_serialize::Body {
-                probe: common::Probe { probe_types },
-            },
+            body: to_serialize::Body { probe: common::Probe { probe_types } },
         };
         let envelope_as_string = yaserde::ser::to_string(&envelope).unwrap();
-        trace!(
-            "create_onvif_discovery_message - discovery message: {:?}",
-            &envelope_as_string
-        );
+        trace!("create_onvif_discovery_message - discovery message: {:?}", &envelope_as_string);
         envelope_as_string
     }
 
@@ -189,8 +180,7 @@ pub mod util {
     }
 
     fn get_device_uris_from_discovery_response(discovery_response: &str) -> Vec<String> {
-        let response_envelope =
-            yaserde::de::from_str::<to_deserialize::Envelope>(&discovery_response);
+        let response_envelope = yaserde::de::from_str::<to_deserialize::Envelope>(&discovery_response);
         // The response envelope follows this format:
         //   <Envelope><Body><ProbeMatches><ProbeMatch><XAddrs>
         //       https://10.0.0.1:5357/svc
@@ -235,10 +225,7 @@ pub mod util {
 
         let thread_devices = shared_devices.clone();
         tokio::spawn(async move {
-            trace!(
-                "simple_onvif_discover - spawned thread enter for {}",
-                &uuid_str
-            );
+            trace!("simple_onvif_discover - spawned thread enter for {}", &uuid_str);
 
             const LOCAL_IPV4_ADDR: Ipv4Addr = Ipv4Addr::UNSPECIFIED;
             const LOCAL_PORT: u16 = 0;
@@ -250,25 +237,12 @@ pub mod util {
             const MULTI_PORT: u16 = 3702;
             let multi_socket_addr = SocketAddr::new(IpAddr::V4(MULTI_IPV4_ADDR), MULTI_PORT);
 
-            trace!(
-                "simple_onvif_discover - binding to: {:?}",
-                local_socket_addr
-            );
+            trace!("simple_onvif_discover - binding to: {:?}", local_socket_addr);
             let socket = UdpSocket::bind(local_socket_addr).unwrap();
-            socket
-                .set_write_timeout(Some(Duration::from_millis(200)))
-                .unwrap();
-            socket
-                .set_read_timeout(Some(Duration::from_millis(200)))
-                .unwrap();
-            trace!(
-                "simple_onvif_discover - joining multicast: {:?} {:?}",
-                &MULTI_IPV4_ADDR,
-                &LOCAL_IPV4_ADDR
-            );
-            socket
-                .join_multicast_v4(&MULTI_IPV4_ADDR, &LOCAL_IPV4_ADDR)
-                .unwrap();
+            socket.set_write_timeout(Some(Duration::from_millis(200))).unwrap();
+            socket.set_read_timeout(Some(Duration::from_millis(200))).unwrap();
+            trace!("simple_onvif_discover - joining multicast: {:?} {:?}", &MULTI_IPV4_ADDR, &LOCAL_IPV4_ADDR);
+            socket.join_multicast_v4(&MULTI_IPV4_ADDR, &LOCAL_IPV4_ADDR).unwrap();
 
             let envelope_as_string = create_onvif_discovery_message(&uuid_str);
             match socket.send_to(&envelope_as_string.as_bytes(), multi_socket_addr) {
@@ -277,28 +251,22 @@ pub mod util {
                         let mut buf = vec![0; 16 * 1024];
                         match socket.recv_from(&mut buf) {
                             Ok((len, _)) => {
-                                let broadcast_response_as_string =
-                                    String::from_utf8_lossy(&buf[..len]).to_string();
-                                trace!(
-                                    "simple_onvif_discover - response: {:?}",
-                                    broadcast_response_as_string
-                                );
+                                let broadcast_response_as_string = String::from_utf8_lossy(&buf[..len]).to_string();
+                                trace!("simple_onvif_discover - response: {:?}", broadcast_response_as_string);
 
-                                get_device_uris_from_discovery_response(
-                                    &broadcast_response_as_string,
-                                )
-                                .iter()
-                                .for_each(|device_uri| {
-                                    trace!(
-                                        "simple_onvif_discover - device_uri parsed from response: {:?}",
-                                        device_uri
-                                    );
-                                    thread_devices.lock().unwrap().push(device_uri.to_string());
-                                    trace!(
-                                        "simple_onvif_discover - thread_devices: {:?}",
-                                        thread_devices.lock().unwrap()
-                                    );
-                                });
+                                get_device_uris_from_discovery_response(&broadcast_response_as_string).iter().for_each(
+                                    |device_uri| {
+                                        trace!(
+                                            "simple_onvif_discover - device_uri parsed from response: {:?}",
+                                            device_uri
+                                        );
+                                        thread_devices.lock().unwrap().push(device_uri.to_string());
+                                        trace!(
+                                            "simple_onvif_discover - thread_devices: {:?}",
+                                            thread_devices.lock().unwrap()
+                                        );
+                                    },
+                                );
                             }
                             Err(e) => match e.kind() {
                                 ErrorKind::WouldBlock | ErrorKind::TimedOut => {
@@ -338,15 +306,9 @@ pub mod util {
         });
 
         // Wait for timeout for discovery thread
-        let discovery_timeout_rx_result = time::timeout(
-            Duration::from_secs(timeout.as_secs()),
-            discovery_timeout_rx.recv(),
-        )
-        .await;
-        trace!(
-            "simple_onvif_discover - spawned thread finished or timeout: {:?}",
-            discovery_timeout_rx_result
-        );
+        let discovery_timeout_rx_result =
+            time::timeout(Duration::from_secs(timeout.as_secs()), discovery_timeout_rx.recv()).await;
+        trace!("simple_onvif_discover - spawned thread finished or timeout: {:?}", discovery_timeout_rx_result);
         // Send cancel message to thread to ensure it doesn't hang around
         let _best_effort_cancel = discovery_cancel_tx.send(()).await;
 
@@ -377,10 +339,7 @@ pub mod util {
                 let end = SystemTime::now();
                 let mut inner_duration = thread_duration.lock().unwrap();
                 *inner_duration = end.duration_since(start).unwrap();
-                trace!(
-                    "call to simple_onvif_discover took {} milliseconds",
-                    inner_duration.as_millis()
-                );
+                trace!("call to simple_onvif_discover took {} milliseconds", inner_duration.as_millis());
             });
 
             let wait_for_call_millis = timeout.as_secs() * 1000 + 200;

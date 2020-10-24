@@ -23,16 +23,12 @@ mod imp {
 
     pub(super) fn shutdown() -> ShutdownSignal {
         let signals = [SIGINT, SIGTERM].iter().map(|&sig| {
-            Signal::new(sig)
-                .flatten_stream()
-                .into_future()
-                .map(move |_| {
-                    trace!("Received {}, starting shutdown", DisplaySignal(sig));
-                })
+            Signal::new(sig).flatten_stream().into_future().map(move |_| {
+                trace!("Received {}, starting shutdown", DisplaySignal(sig));
+            })
         });
-        let on_any_signal = future::select_all(signals)
-            .map(|_| ())
-            .map_err(|_| unreachable!("Signal never returns an error"));
+        let on_any_signal =
+            future::select_all(signals).map(|_| ()).map_err(|_| unreachable!("Signal never returns an error"));
         Box::new(on_any_signal)
     }
 

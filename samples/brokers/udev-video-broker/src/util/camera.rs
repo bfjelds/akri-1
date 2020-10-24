@@ -45,10 +45,7 @@ pub mod camera_client {
             request: impl tonic::IntoRequest<super::NotifyRequest>,
         ) -> Result<tonic::Response<super::NotifyResponse>, tonic::Status> {
             self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
+                tonic::Status::new(tonic::Code::Unknown, format!("Service was not ready: {}", e.into()))
             })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/camera.Camera/GetFrame");
@@ -57,9 +54,7 @@ pub mod camera_client {
     }
     impl<T: Clone> Clone for CameraClient<T> {
         fn clone(&self) -> Self {
-            Self {
-                inner: self.inner.clone(),
-            }
+            Self { inner: self.inner.clone() }
         }
     }
 }
@@ -108,10 +103,7 @@ pub mod camera_server {
                     impl<T: Camera> tonic::server::UnaryService<super::NotifyRequest> for GetFrameSvc<T> {
                         type Response = super::NotifyResponse;
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::NotifyRequest>,
-                        ) -> Self::Future {
+                        fn call(&mut self, request: tonic::Request<super::NotifyRequest>) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move { inner.get_frame(request).await };
                             Box::pin(fut)
